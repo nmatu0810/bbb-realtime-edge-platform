@@ -1,0 +1,4 @@
+poky/
+downloads/
+*.wic
+*.wic.bz2
