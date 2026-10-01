@@ -19,7 +19,7 @@
 ## Build
 
     docker build --build-arg UID=$(id -u) -t yocto-build docker/
-    docker run --rm -it -v ~/workspace_projectb:/workspace yocto-build
+    docker run --rm -it -v ~/workspace/VKU/DoAn:/workspace yocto-build
     # trong container:
     cd poky && source oe-init-build-env build
     bitbake core-image-minimal

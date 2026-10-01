@@ -2,3 +2,12 @@ poky/
 downloads/
 *.wic
 *.wic.bz2
+
+# Các file/thư mục khác của VKU nằm cùng chỗ này, không thuộc repo project B
+Datasheet/
+KTMT&ĐT_KH THỰC HIỆN ĐỒ ÁN CS, CN, TK_HKI 26.27/
+KTMT&ĐT_KH THỰC HIỆN ĐỒ ÁN CS, CN, TK_HKI 26.27.rar
+Mẫu mới/
+Mẫu mới.rar
+quy-trinh-do-an-gateway-stm32.md
+Đề cương DACN2.docx
