@@ -35,6 +35,44 @@ Sửa bằng `meta-projectb/recipes-devtools/pseudo/pseudo_git.bbappend`:
 ghim `SRCREV` mới hơn (có wrapper `openat2`) + patch `older-glibc-symbols.patch`
 đã rebase theo revision đó (patch gốc của poky không áp được lên source mới).
 
+**Đầu đọc SD rời qua USB không đáng tin cho việc flash (đã gặp trên Genesys
+Logic 05e3:0747, USB3 SuperSpeed):**
+`dd` một lệnh cho image lớn (~70MB) báo tốc độ phi lý (1–2 GB/s, vượt cả giới
+hạn lý thuyết của USB3) và dữ liệu ghi xuống bị hỏng âm thầm — `dd` báo thành
+công, checksum sau khi ghi lại sai, luôn **cùng một giá trị sai** (không phải
+random). Thiết bị cũng tự reset theo chu kỳ ~30s (`usb X-Y: reset SuperSpeed
+USB device`); sau đủ số lần lỗi, kernel đánh dấu **offline**
+(`sd 0:0:0:0: rejecting I/O to offline device`) và từ chối mọi I/O tiếp theo —
+lúc đó không lệnh `dd`/`sudo` nào cứu được, **phải rút cắm vật lý** để kernel
+tạo lại SCSI instance mới.
+
+Cách khắc phục:
+1. Tăng timeout SCSI cho đúng instance hiện tại (phải làm lại mỗi lần rút
+   cắm, không giữ qua các lần enumerate):
+   ```
+   echo 180 | sudo tee /sys/block/sdX/device/timeout
+   ```
+2. Ghi **từng khối 1MB** (không ghi cả file một lệnh), đọc lại ngay và so
+   sánh SHA256 với đúng khối tương ứng trong file nguồn, ghi lại khối nào
+   sai tới khi khớp. Xem `scripts/flash-verified.sh` (nếu có) hoặc lịch sử
+   chat để lấy lại script đầy đủ.
+3. Nếu gặp lỗi `No such device or address` liên tục không đổi dù đã chờ →
+   kiểm tra `journalctl -k | grep -i offline`; nếu có, rút cắm lại, không
+   cố `dd`/`partprobe` tiếp.
+4. Sau khi ghi xong, `lsblk` trên máy build có thể **không** tự cập nhật
+   bảng phân vùng mới (vẫn hiện layout cũ). Không quan trọng — BBB tự đọc
+   thẻ bằng bộ điều khiển MMC riêng, độc lập hoàn toàn với máy build.
+
+Bẫy khi tự viết script `dd` theo khối: `stat -c%s` trên một **symlink**
+(ví dụ `.../rootfs.wic -> rootfs-<ts>.wic`) trả về độ dài chuỗi target,
+không phải size file thật — phải dùng `stat -L -c%s`. Nếu dán script nhiều
+dòng có `exit 1` trực tiếp vào shell tương tác (không qua file), `exit` sẽ
+đóng luôn terminal — bọc toàn bộ script trong `( ... )` để `exit` chỉ thoát
+subshell.
+
 ## Flash
 
     sudo bmaptool copy <image>.wic /dev/sdX   # kiểm tra kỹ bằng lsblk trước
+
+Nếu đầu đọc không ổn định (xem mục trên), dùng cách ghi từng khối + xác minh
+thay cho `bmaptool`/`dd` một lệnh.
