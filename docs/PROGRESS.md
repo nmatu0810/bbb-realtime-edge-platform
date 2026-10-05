@@ -5,6 +5,25 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 1 — kiểm chứng build từ đầu (2026-10-06)
+
+**Đã làm**
+- Tạo `scripts/setup-build.sh` và `scripts/templates/` để sinh `conf/` từ repo, thay vì copy từ build cũ
+- Build `build-clean` từ đầu: `downloads/` trống (`DL_DIR` ghi đè cho bài test), sstate trống
+
+**Kết quả đo được**
+- `Sstate summary: Wanted 2057 Local 0`, `Tasks Summary: Attempted 4416 ... all succeeded`
+- 4 cảnh báo fetch từ URL gốc, BitBake lấy từ mirror và vẫn qua
+- `zImage` và `am335x-boneblack.dtb` có sha256 giống build cũ
+- `.wic` có sha256 khác build cũ (chưa điều tra)
+
+**Việc tiếp theo**
+- Tuần 2 (chưa bắt đầu)
+
+**Commit**: chưa commit `scripts/setup-build.sh`, `scripts/templates/`, README
+
+---
+
 ## Tuần 1 — hoàn thành (2026-10-05)
 
 **Đã làm**
@@ -21,7 +40,7 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 - Tuần 2: layer riêng, image recipe thêm gói dev, `.bbappend` kernel, U-Boot/device tree, systemd
 
 **Câu hỏi còn mở**
-- Chưa kiểm chứng "build lại từ đầu bằng một lệnh" trên môi trường sạch (đang dùng lại `downloads/`)
+- `.wic` của build sạch khác `.wic` của build cũ (sha256 khác). `zImage` và `dtb` giống hệt. Chưa biết khác ở đâu (timestamp? rootfs?)
 
 **Commit**: `995a811` (cùng các commit `e7c4186`, `978563e`, `d2b3e9d`)
 

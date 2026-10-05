@@ -1,0 +1,14 @@
+# Sinh bởi scripts/setup-build.sh. Sửa file này trong repo, không sửa tay trong build dir.
+
+MACHINE = "beaglebone-yocto"
+DISTRO ?= "poky"
+
+# Chỉ dùng khi phát triển: root không mật khẩu. Không đưa vào image sản phẩm.
+EXTRA_IMAGE_FEATURES ?= "allow-empty-password empty-root-password allow-root-login"
+
+# Cache mã nguồn, nằm ngoài git (xem .gitignore)
+DL_DIR = "@WORKSPACE@/downloads"
+
+# Máy build: 14GB RAM, 12 luồng. Khoảng 2GB RAM cho mỗi job biên dịch.
+BB_NUMBER_THREADS = "3"
+PARALLEL_MAKE = "-j 3"

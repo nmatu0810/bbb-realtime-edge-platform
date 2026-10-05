@@ -21,10 +21,16 @@
     docker build --build-arg UID=$(id -u) -t yocto-build docker/
     docker run --rm -it -v ~/workspace_projectb:/workspace yocto-build
     # trong container:
-    cd poky && source oe-init-build-env build
+    cd /workspace/poky
+    /workspace/scripts/setup-build.sh <tên-build>   # sinh conf/ từ scripts/templates/
+    source oe-init-build-env <tên-build>
     bitbake core-image-minimal
 
-Output: `poky/build/tmp/deploy/images/beaglebone-yocto/`
+Output: `poky/<tên-build>/tmp/deploy/images/beaglebone-yocto/`
+
+`conf/local.conf` và `conf/bblayers.conf` của build dir được sinh từ
+`scripts/templates/*.in`. Sửa cấu hình ở template rồi chạy lại script; đừng sửa
+tay trong build dir, vì nó không nằm trong git và không tái lập được.
 
 ## Sự cố đã gặp và cách xử lý
 

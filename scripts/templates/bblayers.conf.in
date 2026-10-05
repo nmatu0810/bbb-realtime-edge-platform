@@ -1,0 +1,11 @@
+# Sinh bởi scripts/setup-build.sh. Thêm layer mới vào đây, không dùng bitbake-layers add-layer.
+POKY_BBLAYERS_CONF_VERSION = "2"
+BBPATH = "${TOPDIR}"
+BBFILES ?= ""
+
+BBLAYERS ?= " \
+  @WORKSPACE@/poky/meta \
+  @WORKSPACE@/poky/meta-poky \
+  @WORKSPACE@/poky/meta-yocto-bsp \
+  @WORKSPACE@/meta-projectb \
+  "
