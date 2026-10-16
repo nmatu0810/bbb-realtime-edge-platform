@@ -5,6 +5,43 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 2 — image riêng, SSH bằng khóa, boot flow (2026-10-15 đến 10-16)
+
+**Đã làm**
+- `projectb-image` (kế thừa `core-image-minimal`): `ssh-server-openssh`, `i2c-tools`, `gdbserver`, `stress-ng`, `rt-tests`
+- `projectb-ssh-keys`: khóa công khai `id_ed25519_bbb` vào `/home/root/.ssh/authorized_keys` (0700/0600, chủ root). Khóa riêng ở laptop
+- `projectb-phy-retry`: script sysvinit (S03, chạy nền) bind lại PHY, tối đa 10 lần cách nhau 5 giây
+- Ghi serial log từ lúc cấp nguồn (`docs/boot-serial-*.log`) và viết `docs/boot-flow.md` từ log đó
+- Thử USB gadget NCM (`g_ncm`): nạp được, `usb0` lên link nhưng không truyền dữ liệu (BBB `rx 77, tx 5`, laptop `RX 0`). Chưa điều tra, đường này bỏ
+- Sửa `meta-projectb/conf/layer.conf`: `LAYERDEPENDS = "core yoctobsp"`. Chưa build kiểm, nên chưa commit
+
+**Kết quả đo được**
+- Image boot, SSH vào bằng khóa, đã đối chiếu vân tay host key trên serial với vân tay `ssh` báo
+- Có hai đường boot trên cùng thẻ SD. Không giữ S2: SPL + U-Boot 2019.04 trên eMMC (`bootdelay 0`) nạp kernel từ thẻ SD qua `extlinux`. Giữ S2: SPL + U-Boot 2025.01 trên thẻ SD. Chi tiết trong `boot-flow.md`
+- Kernel và dtb là cùng file với tuần 1 (đóng dấu 2026-09-27), không build lại kernel
+- PHY LAN8710: probe lỗi `-5` (`-EIO`, PHY không ACK MDIO) ở mọi lần boot. Lúc `ifup` có lần kernel gắn được PHY, có lần không. Đã bác lần lượt các giả thuyết về thời gian reset, thời gian từ lúc boot, và bootloader nào chạy trước; nguyên nhân gốc chưa biết
+- Với `projectb-phy-retry`: 5/5 lần boot đường 1 có `192.168.50.182` mà không can thiệp, số lần thử 3, 1, 1, 1, 0. Mẫu nhỏ, một bo, chưa thử đường 2
+- Kernel config: `CONFIG_DEVMEM=y`, `STRICT_DEVMEM` không bật. Build: 223 task (118 sstate miss) lần đầu, 17 task khi thêm module, 35 task khi thêm ssh-keys
+
+**Việc tiếp theo (theo thứ tự)**
+1. Build sạch: `setup-build.sh build-clean` sau khi xóa `tmp`, `sstate-cache`, `cache` cũ; `bitbake projectb-image`; so manifest và `zImage` với bản `build`. Đồng thời kiểm `LAYERDEPENDS` mới
+2. extlinux/cmdline trong layer: `.wks` riêng với `bootloader --configfile`, `WKS_FILE` trỏ vào
+3. Busybox `devmem`: `busybox_%.bbappend` + config fragment (thay `devmem2`, oe-core không có)
+4. Chuyển sang systemd: `INIT_MANAGER = "systemd"` trong template `local.conf`; `ROOT_HOME` đổi thành `/root`; `init-ifupdown` không còn nên phải dùng networkd; viết lại `projectb-phy-retry` thành unit
+5. Vô hiệu bootloader trên eMMC, làm trước tuần 3: sao lưu eMMC (vùng người dùng, `boot0`, `boot1`), xác định MLO nằm ở đâu, vô hiệu, kiểm boot không giữ S2 ra U-Boot 2025.01, có đường khôi phục. Kiểm đúng thiết bị trước mỗi lệnh ghi
+6. Dọn: bỏ `allow-empty-password` (giữ `empty-root-password` cho serial), quyết định có giữ `g_ncm` không
+
+**Câu hỏi còn mở**
+- Vì sao PHY không ACK MDIO lúc probe đầu (cần đo MDIO/nRST bằng logic analyzer)
+- Vì sao gadget NCM không truyền dữ liệu
+- `.wic` khác giữa hai build tuần 1 (chưa điều tra)
+- Layer build độc lập: chưa chạy kiểm
+- Sau khi sang systemd, mạng lên bằng cơ chế nào (chưa kiểm `systemd-networkd`)
+
+**Commit**: `ad450a6` (recipes). Tài liệu và log ở commit liền sau.
+
+---
+
 ## Tuần 1 — kiểm chứng build từ đầu (2026-10-06)
 
 **Đã làm**
@@ -20,7 +57,7 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 **Việc tiếp theo**
 - Tuần 2 (chưa bắt đầu)
 
-**Commit**: chưa commit `scripts/setup-build.sh`, `scripts/templates/`, README
+**Commit**: `6425e78` (`scripts/setup-build.sh`, `scripts/templates/`, README)
 
 ---
 
