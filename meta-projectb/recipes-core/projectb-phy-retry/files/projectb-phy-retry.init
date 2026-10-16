@@ -1,0 +1,93 @@
+#!/bin/sh
+# Gắn lại PHY Ethernet nếu kernel không gắn được lúc boot.
+#
+# Vì sao: LAN8710 trên BBB đôi khi không ACK MDIO ở lần probe đầu
+# ("SMSC LAN8710/LAN8720 ... probe ... failed with error -5"), rồi lúc ifup
+# cpsw báo "phy ... not found on slave 0" và eth0 không có link. Thử lại
+# bind + mở lại giao diện thì có lần gắn được (xem docs/boot-flow.md).
+# Nguyên nhân gốc chưa rõ; script chỉ thử lại có giới hạn, không sửa nguyên nhân.
+#
+# Giá trị riêng của BBB (chính sách), tách khỏi logic phía dưới (cơ chế).
+IFACE=eth0
+PHY_DEV="4a101000.mdio:00"
+PHY_DRV="/sys/bus/mdio_bus/drivers/SMSC LAN8710!LAN8720"
+TRIES=10        # số lần thử tối đa
+GAP=5           # giây chờ sau mỗi lần thử
+IP_WAIT=40      # giây chờ DHCP sau khi PHY gắn được
+
+NAME=projectb-phy-retry
+PIDFILE=/var/run/$NAME.pid
+
+log() {
+    logger -t $NAME "$*"
+    echo "$NAME: $*" > /dev/console 2>/dev/null
+}
+
+attached() {
+    [ -e "/sys/class/net/$IFACE/phydev" ]
+}
+
+has_ip() {
+    ip -4 addr show "$IFACE" 2>/dev/null | grep -q 'inet '
+}
+
+retry() {
+    n=1
+    while [ "$n" -le "$TRIES" ]; do
+        if attached; then
+            log "lần $n: PHY đã gắn"
+            break
+        fi
+        log "lần $n/$TRIES: PHY chưa gắn, bind lại rồi mở lại $IFACE"
+        # Sau probe lỗi PHY không còn driver; bind lại rồi để cpsw gắn khi mở giao diện.
+        if [ ! -e "/sys/bus/mdio_bus/devices/$PHY_DEV/driver" ]; then
+            echo "$PHY_DEV" > "$PHY_DRV/bind" 2>/dev/null || log "bind lỗi (sẽ thử lại)"
+        fi
+        ip link set "$IFACE" down
+        ip link set "$IFACE" up
+        sleep "$GAP"
+        n=$((n + 1))
+    done
+
+    if ! attached; then
+        log "bỏ cuộc sau $TRIES lần, PHY vẫn chưa gắn"
+        return 1
+    fi
+
+    i=0
+    while [ "$i" -lt "$IP_WAIT" ]; do
+        if has_ip; then
+            log "$IFACE có IPv4: $(ip -4 addr show "$IFACE" | grep 'inet ' | tr -s ' ' | cut -d' ' -f3)"
+            return 0
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+    log "PHY gắn được nhưng sau ${IP_WAIT}s $IFACE vẫn chưa có IPv4"
+    return 1
+}
+
+case "$1" in
+start)
+    echo "Starting $NAME (chạy nền)"
+    # Chạy nền để không chặn boot; kết quả ghi vào syslog và console.
+    ( retry ) </dev/null >/dev/null 2>&1 &
+    echo $! > "$PIDFILE"
+    ;;
+stop)
+    if [ -f "$PIDFILE" ]; then
+        kill "$(cat "$PIDFILE")" 2>/dev/null
+        rm -f "$PIDFILE"
+    fi
+    ;;
+restart)
+    "$0" stop
+    "$0" start
+    ;;
+*)
+    echo "Usage: $0 {start|stop|restart}" >&2
+    exit 1
+    ;;
+esac
+
+exit 0
