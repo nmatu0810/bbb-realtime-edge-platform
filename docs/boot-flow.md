@@ -16,6 +16,12 @@ nguồn → ROM → SPL → U-Boot → kernel → init → userspace
 Bo có hai nơi chứa bootloader: eMMC (đã có sẵn một bản U-Boot) và thẻ SD (`MLO` +
 `u-boot.img` do ta build). Giữ nút S2 lúc cấp nguồn hay không quyết định bản nào chạy.
 
+Cập nhật 2026-10-16: đã vô hiệu SPL trên eMMC (ghi 512 byte 0 vào sector 256, xem
+`emmc-bootloader-disable.md`). Từ đó mọi lần boot, không cần S2, chạy đường 2 (SPL và U-Boot
+2025.01 trên thẻ SD); log `boot-serial-2026-10-16-emmc-off.log` không còn dòng `2019.04` hay
+`MMC2` nào. Mục "Hai đường boot" dưới đây ghi lại tình trạng trước khi vô hiệu eMMC, là cơ sở
+của quyết định đó.
+
 ## Hai đường boot
 
 Đường 1, không giữ S2 (log A dòng 2-318):
@@ -70,7 +76,8 @@ Số dòng theo log 1.
 5. `Waiting for root device PARTUUID=076c4a2a-02` (313). `mmc1` là eMMC 3.53 GiB, `mmc0` là
    thẻ SD 29.7 GiB (314-322). Rootfs `mmcblk0p2` ext4 gắn chỉ-đọc (323-326), rồi
    `Run /sbin/init` (328).
-6. init là sysvinit 3.14 (329), do `INIT_MANAGER = "sysvinit"` mặc định của Poky. udev
+6. (Ảnh sysvinit, trước khi chuyển sang systemd; ảnh systemd ở mục cuối phần mạng.) init là
+   sysvinit 3.14 (329), do `INIT_MANAGER = "sysvinit"` mặc định của Poky. udev
    (331-333), gắn lại đọc-ghi (334), runlevel 5 (336), mạng, sshd, syslogd/klogd
    (337-347), `login:` trên `ttyS0` (349-351).
 
@@ -82,6 +89,7 @@ Số dòng theo log 1.
 | log A boot 3 (606, 673-679) | 2 | lỗi `-5` | `phy ... not found on slave 0` | `no lease` |
 | log 1 (270, 338-343) | 2 | lỗi `-5` | `phy ... not found on slave 0` | `no lease` |
 | log A-D1 (228, 296, 301) | 1 | lỗi `-5` | `phy ... not found on slave 0` | `no lease` |
+| log emmc-off (215, 286-305) | 2 (sau khi vô hiệu eMMC, không S2) | lỗi `-5` | `not found`; `phy-retry` lần 1 bind SMSC được | `192.168.50.182/24` sau 1 lần thử |
 
 SMSC probe lỗi `-5` ở mọi lần. Khác nhau ở chỗ lúc `ifup` kernel có gắn được PHY
 (bằng driver `Generic PHY`) hay không. Đường 1 có một lần tốt (log A boot 1) và một lần
@@ -108,6 +116,33 @@ lần phải thử thay đổi từ 0 đến 3. Lỗi không tái hiện theo ki
 số lần thử cố định đảm bảo thành công. Mẫu nhỏ (năm lần, một bo, chỉ đường 1); đường 2
 chưa thử với script. Log không có mốc thời gian nên chưa đo được thời gian tới khi có IP.
 Mới kiểm `ip addr`, chưa kiểm đăng nhập SSH sau từng lần boot.
+
+## Sau khi chuyển sang systemd (2026-10-16)
+
+Log `boot-serial-2026-10-16-extlinux-d1.log`: SPL và U-Boot 2025.01 từ thẻ SD (2-6), extlinux
+(26-30), kernel cùng banner `#1 PREEMPT Mon Sep 15 02:39:40 UTC 2025` (42), cmdline đúng file
+trong layer (58). Rootfs `mmcblk0p2` gắn chỉ-đọc rồi `Run /sbin/init` (268-273). init là
+systemd 257.6, `-SYSVINIT` (275).
+
+Mạng do `systemd-networkd` cấu hình, không còn `/etc/network/interfaces`:
+
+- SMSC probe vẫn lỗi `-5` (215), như mọi lần trước.
+- `Started Network Configuration` (424) mở `eth0`, và chính lúc đó kernel gắn `Generic PHY`
+  (425), `Link is Up 100Mbps/Full` (438). `projectb-phy-retry.service` chỉ `Started` ở dòng 464,
+  tức sau khi PHY đã gắn.
+- Journal của unit: `lần 1: PHY đã gắn`, rồi `eth0 có IPv4: 192.168.50.182/24`, chạy 502 ms,
+  thoát 0. Vậy lần này đường "bind lại" của script không được chạy; một mẫu duy nhất, chưa
+  chứng minh unit gắn lại được PHY khi kernel không gắn.
+
+`systemctl is-system-running` ngay sau khi đăng nhập trả `starting`, `systemctl --failed` rỗng.
+Trong log không có `Reached target Multi-User System` hay `Startup finished` tới lúc ra
+`login:` (473-476): còn job chưa xong. Lần kiểm sau đó `is-system-running` ra `running` và `list-jobs` rỗng, nên chỉ là
+boot chưa xong lúc gõ lệnh; chưa biết unit nào chậm (cần gói `systemd-analyze`). Journal nằm
+trong RAM (không có `/var/log/journal`), mất khi tắt nguồn.
+
+Đồng hồ: RTC của bo không có pin (`setting system clock to 2000-01-01`, 200), systemd đẩy
+lên mốc epoch lúc build `2025-05-29` (274), `systemd-timesyncd` có chạy (406) nhưng chưa đồng
+bộ; mọi dấu thời gian trong journal lệch ~17 tháng.
 
 ## Bất thường khác
 

@@ -33,12 +33,16 @@ Tiến độ: đọc `docs/PROGRESS.md` trước khi làm bất cứ việc gì.
 - Sau khi ghi, không cần `partprobe` hay mount để kiểm tra; BBB tự đọc thẻ
 
 ## Việc chưa làm, cần nhớ
-- MPU6050 **không có ngắt FIFO watermark** (chỉ DATA_RDY, FIFO_OFLOW, I2C_MST). Phải chốt cách đọc FIFO trước tuần 4 và sửa lại kế hoạch.
+- Kế hoạch đã điều chỉnh ngày 2026-10-16, xem `docs/ROADMAP.md` (phân chia GĐ1/GĐ2, lý do). Spec gốc đã cập nhật theo, bản trước khi sửa ở scratchpad của session đó.
+- MPU6050 **không có ngắt FIFO watermark**. INT_ENABLE có DATA_RDY, FIFO_OFLOW, I2C_MST và các ngắt chuyển động (Motion, Zero-motion, Free-fall). Đã chốt: ngắt DATA_RDY + đọc FIFO theo lô trong threaded IRQ.
+- Đã chốt hợp đồng driver ↔ userspace: `/dev/mpu6050` trả bản ghi nhị phân qua `read()`, `poll()` + `ioctl()`, struct trong header uapi dùng chung; sysfs chỉ cấu hình. Chương trình test GĐ1 dùng `poll()`, không đọc sysfs.
+- GĐ1 thêm: cmdline/extlinux trong layer (tuần 2), overlay MPU6050 + pinmux trong layer, kiểm bằng `devmem` của busybox (tuần 3; bật applet bằng `busybox_%.bbappend`, oe-core không có `devmem2`). Phần còn lại (machine conf, watchdog, udev, `sensord`, shm, mq, benchmark runner) là GĐ2.
 - Thiếu SPI (ADXL345 là optional) và networking (MQTT/HTTP) so với lộ trình tài liệu "Embedded Systems journey". Chỉ làm khi GĐ1 xong sớm.
 
 ## Cách làm việc với người dùng (Tus)
 - Người dùng tự gõ lệnh, mình hướng dẫn. Mỗi bước: hỏi dự đoán trước, để họ chạy và dán output, rồi đối chiếu.
 - Ở mỗi bước giải thích logic và tư duy hệ thống: tầng nào phụ thuộc tầng nào, tách cái chung khỏi cái riêng, cơ chế và chính sách.
+- Quyết định thiết kế hay thứ tự việc: Tus đang vừa làm vừa học nên chưa tự chọn được. Đừng hỏi "bạn chọn gì". Phân tích nhiều chiều (phụ thuộc giữa các tầng, chi phí, rủi ro, khả năng hoàn tác, thông tin thu được, khớp spec), đưa khuyến nghị kèm lý do, rồi làm theo. Chỉ hỏi dữ kiện mà chỉ họ có.
 - Khi họ kẹt: tách câu hỏi nhỏ hơn, đừng đưa đáp án ngay. Riêng việc có nguy cơ mất dữ liệu (ghi nhầm ổ) thì nói thẳng.
 - Khi mình sai: sửa thẳng, không biện minh. Khuyến khích họ kiểm chứng bằng file và log thật.
 - Đừng tin mắt khi chỉ có khoảng trắng để phân biệt; dùng `cat -A`, `grep '^...'`, `stat`.
