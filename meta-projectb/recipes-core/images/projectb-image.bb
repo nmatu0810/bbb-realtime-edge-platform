@@ -2,6 +2,10 @@ SUMMARY = "Project B image: core-image-minimal + SSH server + dev tools for BBB/
 
 require recipes-core/images/core-image-minimal.bb
 
+# Ảnh SD dựng bằng wks và extlinux.conf nằm trong layer (meta-projectb/wic/), không dùng
+# beaglebone-yocto.wks của meta-yocto-bsp. Kernel cmdline sửa ở projectb-extlinux.conf.
+WKS_FILE = "projectb.wks"
+
 # SSH server qua image feature (kéo packagegroup-core-ssh-openssh),
 # thay vì ghi tay "openssh" vào IMAGE_INSTALL.
 IMAGE_FEATURES += "ssh-server-openssh"
