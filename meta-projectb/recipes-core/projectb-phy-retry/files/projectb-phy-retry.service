@@ -1,0 +1,13 @@
+[Unit]
+Description=Re-attach the Ethernet PHY if the kernel failed to probe it (BeagleBone Black LAN8710)
+# networkd mở eth0 trước; script chỉ vào việc nếu PHY chưa gắn.
+After=systemd-networkd.service
+Wants=systemd-networkd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/projectb-phy-retry
+# Không Restart: script đã tự thử lại có giới hạn và thoát 1 khi bỏ cuộc.
+
+[Install]
+WantedBy=multi-user.target

@@ -5,18 +5,23 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 
 COMPATIBLE_MACHINE = "beaglebone-yocto"
 
-SRC_URI = "file://projectb-phy-retry.init"
+SRC_URI = " \
+    file://projectb-phy-retry.sh \
+    file://projectb-phy-retry.service \
+"
 
 S = "${WORKDIR}/sources"
 UNPACKDIR = "${S}"
 
-inherit update-rc.d
+inherit systemd
 
-# Chạy sau "networking" (S01), vì ifup eth0 phải thử mở giao diện trước.
-INITSCRIPT_NAME = "projectb-phy-retry"
-INITSCRIPT_PARAMS = "start 03 2 3 4 5 . stop 80 0 6 1 ."
+SYSTEMD_SERVICE:${PN} = "projectb-phy-retry.service"
+SYSTEMD_AUTO_ENABLE = "enable"
 
 do_install () {
-    install -d ${D}${sysconfdir}/init.d
-    install -m 0755 ${S}/projectb-phy-retry.init ${D}${sysconfdir}/init.d/projectb-phy-retry
+    install -d ${D}${sbindir}
+    install -m 0755 ${S}/projectb-phy-retry.sh ${D}${sbindir}/projectb-phy-retry
+
+    install -d ${D}${systemd_system_unitdir}
+    install -m 0644 ${S}/projectb-phy-retry.service ${D}${systemd_system_unitdir}/projectb-phy-retry.service
 }
