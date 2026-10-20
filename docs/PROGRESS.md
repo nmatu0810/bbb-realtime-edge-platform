@@ -5,6 +5,50 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 3 — bàn giao, chưa bắt đầu (ghi 2026-10-20)
+
+Đọc mục này trước khi bắt đầu tuần 3 ở session mới. Tuần 1 và 2 đã xong, chi tiết ở các mục bên dưới.
+
+**Hệ thống đang chạy (sau tuần 2)**
+- Boot: ROM → SPL/U-Boot 2025.01 trên thẻ SD (bootloader eMMC đã vô hiệu, không cần giữ S2) → `extlinux.conf` từ layer (`meta-projectb/wic/projectb-extlinux.conf`) → kernel 6.12.47 (`zImage` `fcbb876b…`, dtb `am335x-boneblack.dtb` `23abc1f3…`) → systemd 257.6. Dòng `fdtoverlays /overlays/mpu6050.dtbo` đang comment trong extlinux, chờ tuần 3
+- Image `projectb-image` build trong `poky/build-clean` (build duy nhất còn lại), ảnh cuối `projectb-image-beaglebone-yocto.rootfs-20261020043011.wic`
+- Mạng: `eth0` DHCP qua systemd-networkd, router `192.168.50.1`, bo nhận `192.168.50.182`; laptop phải cùng mạng `192.168.50.x`. PHY LAN8710 vẫn lỗi `-5` lúc probe, `projectb-phy-retry.service` thử lại
+- SSH chỉ bằng khóa: `ssh -i ~/.ssh/id_ed25519_bbb -o IdentitiesOnly=yes root@192.168.50.182`. Host key đổi mỗi lần ghi ảnh: so vân tay trên serial rồi mới `ssh-keygen -R`. Serial: `picocom -b 115200 -g docs/<log>.log /dev/ttyUSB0`, `login: root` không mật khẩu
+- Có sẵn trên bo: `i2c-tools`, `devmem` (busybox), `gdbserver`, `stress-ng`, `rt-tests`. Chưa có `systemd-analyze`, `evtest`
+
+**Quy trình đã quen (đừng đổi khi không có lý do)**
+- Build: `docker run --rm -it -v ~/workspace_projectb:/workspace yocto-build`, `cd /workspace/poky && source oe-init-build-env build-clean`, `bitbake projectb-image` (hoặc `scripts/yocto.sh bitbake projectb-image`). Đổi template thì chạy lại `scripts/setup-build.sh build-clean`
+- Ghi thẻ: `lsblk -o NAME,SIZE,MODEL,TRAN,RM` và xác nhận thiết bị (thẻ 29.7G, `RM=1`, thường là `sda`; ổ hệ thống là `nvme0n1`) → `echo 180 | sudo tee /sys/block/sdX/device/timeout` → `scripts/flash-verified.sh <wic> /dev/sdX`
+- Mỗi lần boot thử: mở `picocom` ghi log trước khi cấp nguồn, log lưu vào `docs/boot-serial-<ngày>-<tên>.log`
+
+**Checklist tuần 3 (spec dòng 203–214)** và điểm xuất phát đã kiểm
+1. Màn HDMI 7" + cảm ứng USB: kernel có `DRM_TILCDC=y`, `DRM_I2C_NXP_TDA998X=y`; log boot hiện `tilcdc ... Cannot find any crtc or sizes` vì chưa nối màn. Cần `evtest` trong image để thử cảm ứng
+2. Nối MPU6050: VCC 3.3V, SDA P9_20, SCL P9_19 (I2C2), INT vào một GPIO rảnh (spec gợi ý P9_12, không trùng chân HDMI); kiểm pinout trước khi nối
+3. `i2cdetect -y -r 2` thấy `0x68` (`0x69` nếu AD0 nối cao). Kernel đã có `I2C_OMAP=y`, `I2C_CHARDEV=y`; log boot có `omap_i2c 4819c000.i2c: bus 2` nên I2C2 đã bật trong dtb gốc, còn pinmux thì chưa kiểm
+4. Overlay `.dtbo` trong layer (node dưới `&i2c2`, `compatible` riêng, pinctrl I2C2 + INT mode 7 input), nạp qua `fdtoverlays` của extlinux (U-Boot 2025.01 hỗ trợ, `pxe_utils.c`). Kiểm mode chân bằng `devmem 0x44E10000+offset` (tự tra offset trong TRM)
+5. `i2cget` đọc `WHO_AM_I` (0x75), ghi giá trị thật (clone có thể khác 0x68)
+6. Logic analyzer bắt SCL/SDA khi `i2cget`, lưu ảnh cho báo cáo
+7. Kernel RT: `poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb` cùng 6.12.47 (`KBRANCH v6.12/standard/preempt-rt/base`) nhưng `COMPATIBLE_MACHINE` chỉ có qemu, nên cần `.bbappend` trong layer (đây là dòng `.bbappend` kernel dời từ tuần 2) và `PREFERRED_PROVIDER_virtual/kernel`. **Trước khi build RT: lưu ảnh + `zImage` + dtb non-RT hiện tại** làm mốc benchmark (xem CLAUDE.md)
+8. Xác nhận `inv_mpu6050` không bật: kernel thường đã kiểm, không có `CONFIG_INV_MPU6050*` và không có `CONFIG_IIO`. Kernel RT phải kiểm lại
+9. Git tag `bringup-done`
+
+Xong tuần 3 khi: màn hiện hình, `i2cdetect` thấy MPU6050, có ảnh logic analyzer xung I2C, kernel RT boot được, tag đã đặt.
+
+**Dữ kiện chỉ người làm có, phải hỏi trước**
+- MPU6050 đã nối chưa, chân INT nối vào chân nào, AD0 nối GND hay VCC
+- Có logic analyzer chưa (loại nào), màn 7" đang ở đâu, cáp micro-HDMI
+- Muốn làm HDMI trước hay MPU6050 trước (spec khuyên HDMI sớm vì rủi ro tilcdc/tda998x)
+
+**Bẫy đã gặp, nhớ để không lặp lại**
+- `dd` của busybox không có `conv=fsync`; lệnh lỗi thì không ghi gì, phải đọc lại để kiểm
+- zsh: glob không khớp hủy cả lệnh; `~` không mở rộng sau `if=`; `=====` bị hiểu là `=cmd`; `ls` là alias `eza` có icon nên đừng `$(ls ...)`
+- `picocom` cũ giữ khóa cổng (`cannot lock /dev/ttyUSB0`): thoát bằng `Ctrl-A Ctrl-X`
+- `ssh ... | grep` che dấu nhắc của phiên; dùng `ssh ... 'lệnh'` để phiên tự đóng
+- Đồng hồ bo không có pin, giờ journal sai; journal ở RAM, mất khi tắt nguồn
+- `git commit` lấy cả những gì đã stage từ trước: xem `git diff --cached --name-status` trước mỗi commit
+
+---
+
 ## Tuần 2 — image riêng, SSH bằng khóa, boot flow (2026-10-15 đến 10-20) — XONG 2026-10-20
 
 Ba tiêu chí của spec đạt trên ảnh cuối (`rootfs-20261020043011.wic`): boot + SSH bằng khóa, layer build độc lập, `boot-flow.md` từ log thật. Dòng `.bbappend` kernel trong checklist chuyển sang tuần 3 (xem ROADMAP): chưa có cấu hình nào cần giữ riêng, `.bbappend` rỗng chỉ tốn một vòng build.

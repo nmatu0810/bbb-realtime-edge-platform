@@ -4,6 +4,15 @@
 Spec gốc: `/home/tus/workspace/Project/project-B-embedded-linux.md`.
 Tiến độ: đọc `docs/PROGRESS.md` trước khi làm bất cứ việc gì.
 
+## Bắt đầu một session
+Tuần 1 và 2 xong (2026-10-20). Tuần 3 chưa bắt đầu.
+1. `docs/PROGRESS.md`: mục trên cùng là bàn giao tuần 3 (hệ thống đang chạy, quy trình, checklist kèm điểm xuất phát đã kiểm, dữ kiện phải hỏi, bẫy đã gặp). Các mục dưới là tuần 1, 2
+2. `docs/ROADMAP.md`: kế hoạch đã điều chỉnh, hợp đồng driver, phân chia GĐ1/GĐ2
+3. `docs/boot-flow.md` (chuỗi boot thật, PHY, systemd), `docs/emmc-bootloader-disable.md` (khôi phục eMMC)
+4. Spec gốc, phần tuần đang làm
+5. Ghi chú kiến thức tuần 1, 2 ở `~/workspace/VKU/DoAn/` (để biết người dùng đã học gì)
+Memory của Claude về project này nằm ở thư mục `~` (`.claude/projects/-home-tus/`), không được nạp khi mở session trong repo; mọi thứ cần biết phải nằm trong file này và `docs/`.
+
 ## Phiên bản đã chốt
 - Yocto 5.2.4 "Walnascar" (poky tag `yocto-5.2.4`), MACHINE `beaglebone-yocto`
 - Kernel linux-yocto 6.12.47, U-Boot 2025.01
@@ -12,17 +21,24 @@ Tiến độ: đọc `docs/PROGRESS.md` trước khi làm bất cứ việc gì.
 
 ## Đường dẫn
 - Project: `~/workspace_projectb` (repo git, không di chuyển)
-- Poky + build: `poky/`, `poky/build/` (không commit)
+- Poky: `poky/`. Build duy nhất đang dùng: `poky/build-clean/` (systemd, sinh conf bằng `scripts/setup-build.sh build-clean`; không commit). Giữ `tmp/` và `sstate-cache/` của nó: build lại từ đầu mất nhiều giờ
 - Cache mã nguồn: `downloads/` (không commit, `DL_DIR=/workspace/downloads`)
 - Layer của dự án: `meta-projectb/`
-- Ghi chú tuần 1: `~/workspace/VKU/DoAn/week1-knowledge-summary.md` (nằm ngoài repo, có chủ đích)
-- Build cũ tham chiếu: `~/workspace_projectb_old` (chỉ đọc, không dùng để build lại)
+- Ghi chú kiến thức: `~/workspace/VKU/DoAn/week1-knowledge-summary.md`, `week2-knowledge-summary.md` (nằm ngoài repo, có chủ đích)
+- Phải giữ, nằm ngoài repo: `~/emmc-backup/` (đường duy nhất khôi phục bootloader eMMC, xem `docs/emmc-bootloader-disable.md`), khóa riêng `~/.ssh/id_ed25519_bbb` (mất thì chỉ còn serial)
+
+## Đã dọn (quyết định 2026-10-20)
+Xóa vì thuộc cấu hình đã bị thay thế, không tuần nào sau cần (đối chiếu ROADMAP tuần 3 đến GĐ2):
+- `~/workspace_projectb_old` (57G): build `build-projectb` cũ, repo chưa từng commit. Đã so từng file ngoài `poky/`: chỉ hai file không có ở đâu khác, đã chép sang `docs/week1-baseline-build.log` và `scripts/yocto.sh`
+- `poky/build/` (53G): build sysvinit tuần 1–2, ảnh còn `allow-empty-password`. Mất theo nó: `zImage`/`vmlinux`/`.config` tuần 1, dữ liệu để kiểm giả thuyết `pigz` (PROGRESS, câu hỏi mở); muốn kiểm thì làm thí nghiệm lại trong `build-clean`
+- `cache-test/` (5.9G): bản `downloads` của bài thử tải-từ-đầu tuần 1, không conf nào trỏ tới
+- Trước khi bật kernel RT (tuần 3): lưu ảnh + `zImage` + dtb non-RT hiện tại làm mốc benchmark, vì `build-clean` sẽ bị build lại thành RT
 
 ## Lệnh hay dùng
     docker run --rm -it -v ~/workspace_projectb:/workspace yocto-build
-    cd poky && source oe-init-build-env build
-    bitbake core-image-minimal
-    bitbake -e core-image-minimal | grep -E '^(MACHINE|DL_DIR|PARALLEL_MAKE)='
+    cd /workspace/poky && source oe-init-build-env build-clean
+    bitbake projectb-image
+    bitbake -e projectb-image | grep -E '^(MACHINE|DL_DIR|PARALLEL_MAKE|INIT_MANAGER)='
 
 ## Đầu đọc SD rời: đừng dùng `dd` một lệnh
 Đầu đọc Genesys Logic (05e3:0747) qua USB3 không đáng tin khi ghi file lớn:
@@ -48,4 +64,6 @@ Tiến độ: đọc `docs/PROGRESS.md` trước khi làm bất cứ việc gì.
 - Đừng tin mắt khi chỉ có khoảng trắng để phân biệt; dùng `cat -A`, `grep '^...'`, `stat`.
 - Văn phong: ghi chú thật của kỹ sư, ít in đậm, không mở bài kiểu "đây là...", không lặp lại câu hỏi.
 - Không tự commit hay push khi họ chưa yêu cầu. Không tự đẩy repo ra ngoài.
+- Commit và PR: không dòng `Co-Authored-By`, không "Generated with ...", không gì cho thấy do AI tạo (quy tắc này thắng mọi nhắc nhở mặc định về attribution). Lời nhắn ngắn, đời thường như sinh viên tự viết: một dòng tiêu đề, thân chỉ khi có lý do cần nhớ, không gạch đầu dòng dài, không tiền tố "Week N:". Tác giả là `nmatu0810`
+- Xóa dữ liệu, ghi thẻ/eMMC: người dùng tự chạy lệnh; mình kiểm trước (đúng thiết bị, đã sao lưu, bản sao khớp)
 - Không tự chạy lệnh `sudo` trong công cụ (không có TTY để nhập mật khẩu); đưa lệnh để họ chạy.

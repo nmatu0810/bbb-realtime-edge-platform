@@ -1,0 +1,105 @@
+Loading cache...done.
+Loaded 0 entries from dependency cache.
+Parsing recipes...done.
+Parsing of 924 .bb files complete (0 cached, 924 parsed). 1885 targets, 68 skipped, 0 masked, 0 errors.
+NOTE: Resolving any missing task queue dependencies
+
+Build Configuration:
+BB_VERSION           = "2.12.1"
+BUILD_SYS            = "x86_64-linux"
+NATIVELSBSTRING      = "universal"
+TARGET_SYS           = "arm-poky-linux-gnueabi"
+MACHINE              = "beaglebone-yocto"
+DISTRO               = "poky"
+DISTRO_VERSION       = "5.2.4"
+TUNE_FEATURES        = "arm vfp cortexa8 neon callconvention-hard"
+TARGET_FPU           = "hard"
+meta                 
+meta-poky            
+meta-yocto-bsp       = "walnascar:d0b46a6624ec9c61c47270745dd0b2d5abbe6ac1"
+meta-projectb        = "<unknown>:<unknown>"
+
+Initialising tasks...Sstate summary: Wanted 23 Local 20 Mirrors 0 Missed 3 Current 2040 (86% match, 99% complete)
+Removing 3 stale sstate objects for arch beaglebone_yocto...done.
+NOTE: Executing Tasks
+NOTE: Running setscene task 2042 of 2063 (/workspace/poky/meta/recipes-support/gmp/gmp_6.3.0.bb:do_create_package_spdx_setscene)
+NOTE: Running setscene task 2044 of 2063 (/workspace/poky/meta/recipes-support/attr/attr_2.5.2.bb:do_create_package_spdx_setscene)
+NOTE: Running setscene task 2045 of 2063 (/workspace/poky/meta/recipes-core/zlib/zlib_1.3.1.bb:do_create_package_spdx_setscene)
+NOTE: Running setscene task 2046 of 2063 (/workspace/poky/meta/recipes-core/libxcrypt/libxcrypt_4.4.38.bb:do_create_package_spdx_setscene)
+NOTE: Running setscene task 2047 of 2063 (/workspace/poky/meta/recipes-core/ncurses/ncurses_6.5.bb:do_create_package_spdx_setscene)
+NOTE: Running setscene task 2049 of 2063 (/workspace/poky/meta/recipes-devtools/opkg-utils/opkg-utils_0.7.0.bb:do_create_package_spdx_setscene)
+NOTE: recipe gmp-6.3.0-r0: task do_create_package_spdx_setscene: Started
+NOTE: recipe libxcrypt-4.4.38-r0: task do_create_package_spdx_setscene: Started
+NOTE: recipe zlib-1.3.1-r0: task do_create_package_spdx_setscene: Started
+NOTE: recipe ncurses-6.5-r0: task do_create_package_spdx_setscene: Started
+NOTE: recipe attr-2.5.2-r0: task do_create_package_spdx_setscene: Started
+NOTE: recipe opkg-utils-0.7.0-r0: task do_create_package_spdx_setscene: Started
+NOTE: recipe libxcrypt-4.4.38-r0: task do_create_package_spdx_setscene: Succeeded
+NOTE: recipe zlib-1.3.1-r0: task do_create_package_spdx_setscene: Succeeded
+NOTE: recipe gmp-6.3.0-r0: task do_create_package_spdx_setscene: Succeeded
+NOTE: recipe ncurses-6.5-r0: task do_create_package_spdx_setscene: Succeeded
+NOTE: Running setscene task 2050 of 2063 (/workspace/poky/meta/recipes-core/libxcrypt/libxcrypt_4.4.38.bb:do_create_spdx_setscene)
+NOTE: Running setscene task 2051 of 2063 (/workspace/poky/meta/recipes-core/ncurses/ncurses_6.5.bb:do_create_spdx_setscene)
+NOTE: Running setscene task 2052 of 2063 (/workspace/poky/meta/recipes-support/gmp/gmp_6.3.0.bb:do_create_spdx_setscene)
+NOTE: Running setscene task 2053 of 2063 (/workspace/poky/meta/recipes-core/zlib/zlib_1.3.1.bb:do_create_spdx_setscene)
+NOTE: recipe opkg-utils-0.7.0-r0: task do_create_package_spdx_setscene: Succeeded
+NOTE: recipe attr-2.5.2-r0: task do_create_package_spdx_setscene: Succeeded
+NOTE: recipe libxcrypt-4.4.38-r0: task do_create_spdx_setscene: Started
+NOTE: recipe gmp-6.3.0-r0: task do_create_spdx_setscene: Started
+NOTE: recipe ncurses-6.5-r0: task do_create_spdx_setscene: Started
+NOTE: recipe zlib-1.3.1-r0: task do_create_spdx_setscene: Started
+NOTE: recipe libxcrypt-4.4.38-r0: task do_create_spdx_setscene: Succeeded
+NOTE: recipe gmp-6.3.0-r0: task do_create_spdx_setscene: Succeeded
+NOTE: recipe ncurses-6.5-r0: task do_create_spdx_setscene: Succeeded
+NOTE: Running setscene task 2054 of 2063 (/workspace/poky/meta/recipes-support/gmp/gmp_6.3.0.bb:do_populate_sysroot_setscene)
+NOTE: Running setscene task 2055 of 2063 (/workspace/poky/meta/recipes-support/attr/attr_2.5.2.bb:do_create_spdx_setscene)
+NOTE: Running setscene task 2056 of 2063 (/workspace/poky/meta/recipes-core/ncurses/ncurses_6.5.bb:do_populate_sysroot_setscene)
+NOTE: Running setscene task 2057 of 2063 (/workspace/poky/meta/recipes-core/libxcrypt/libxcrypt_4.4.38.bb:do_populate_sysroot_setscene)
+NOTE: recipe zlib-1.3.1-r0: task do_create_spdx_setscene: Succeeded
+NOTE: Running setscene task 2058 of 2063 (/workspace/poky/meta/recipes-core/zlib/zlib_1.3.1.bb:do_populate_sysroot_setscene)
+NOTE: recipe gmp-6.3.0-r0: task do_populate_sysroot_setscene: Started
+NOTE: recipe libxcrypt-4.4.38-r0: task do_populate_sysroot_setscene: Started
+NOTE: recipe attr-2.5.2-r0: task do_create_spdx_setscene: Started
+NOTE: recipe ncurses-6.5-r0: task do_populate_sysroot_setscene: Started
+NOTE: recipe zlib-1.3.1-r0: task do_populate_sysroot_setscene: Started
+NOTE: recipe gmp-6.3.0-r0: task do_populate_sysroot_setscene: Succeeded
+NOTE: recipe libxcrypt-4.4.38-r0: task do_populate_sysroot_setscene: Succeeded
+NOTE: recipe attr-2.5.2-r0: task do_create_spdx_setscene: Succeeded
+NOTE: recipe zlib-1.3.1-r0: task do_populate_sysroot_setscene: Succeeded
+NOTE: Running setscene task 2059 of 2063 (/workspace/poky/meta/recipes-devtools/opkg-utils/opkg-utils_0.7.0.bb:do_create_spdx_setscene)
+NOTE: Running setscene task 2060 of 2063 (/workspace/poky/meta/recipes-support/attr/attr_2.5.2.bb:do_populate_sysroot_setscene)
+NOTE: recipe ncurses-6.5-r0: task do_populate_sysroot_setscene: Succeeded
+NOTE: recipe opkg-utils-0.7.0-r0: task do_create_spdx_setscene: Started
+NOTE: recipe attr-2.5.2-r0: task do_populate_sysroot_setscene: Started
+NOTE: recipe opkg-utils-0.7.0-r0: task do_create_spdx_setscene: Succeeded
+NOTE: recipe attr-2.5.2-r0: task do_populate_sysroot_setscene: Succeeded
+NOTE: Running setscene task 2061 of 2063 (/workspace/poky/meta/recipes-devtools/opkg-utils/opkg-utils_0.7.0.bb:do_populate_sysroot_setscene)
+NOTE: recipe opkg-utils-0.7.0-r0: task do_populate_sysroot_setscene: Started
+NOTE: recipe opkg-utils-0.7.0-r0: task do_populate_sysroot_setscene: Succeeded
+NOTE: Running setscene task 2062 of 2063 (/workspace/poky/meta/recipes-devtools/gcc/gcc-runtime_14.3.bb:do_populate_sysroot_setscene)
+NOTE: recipe gcc-runtime-14.3.0-r0: task do_populate_sysroot_setscene: Started
+NOTE: recipe gcc-runtime-14.3.0-r0: task do_populate_sysroot_setscene: Succeeded
+NOTE: Running setscene task 2063 of 2063 (/workspace/poky/meta/recipes-devtools/gcc/libgcc_14.3.bb:do_populate_sysroot_setscene)
+NOTE: recipe libgcc-14.3.0-r0: task do_populate_sysroot_setscene: Started
+NOTE: recipe libgcc-14.3.0-r0: task do_populate_sysroot_setscene: Succeeded
+NOTE: Running task 4281 of 4431 (/workspace/poky/meta/recipes-core/images/core-image-minimal.bb:do_rootfs_wicenv)
+NOTE: recipe core-image-minimal-1.0-r0: task do_rootfs_wicenv: Started
+NOTE: recipe core-image-minimal-1.0-r0: task do_rootfs_wicenv: Succeeded
+NOTE: Running task 4426 of 4431 (/workspace/poky/meta/recipes-core/images/core-image-minimal.bb:do_image_wic)
+NOTE: recipe core-image-minimal-1.0-r0: task do_image_wic: Started
+NOTE: recipe core-image-minimal-1.0-r0: task do_image_wic: Succeeded
+NOTE: Running task 4427 of 4431 (/workspace/poky/meta/recipes-core/images/core-image-minimal.bb:do_image_complete)
+NOTE: recipe core-image-minimal-1.0-r0: task do_image_complete: Started
+NOTE: recipe core-image-minimal-1.0-r0: task do_image_complete: Succeeded
+NOTE: Running task 4428 of 4431 (/workspace/poky/meta/recipes-core/images/core-image-minimal.bb:do_create_image_spdx)
+NOTE: Running task 4429 of 4431 (/workspace/poky/meta/recipes-core/images/core-image-minimal.bb:do_populate_lic_deploy)
+NOTE: recipe core-image-minimal-1.0-r0: task do_create_image_spdx: Started
+NOTE: recipe core-image-minimal-1.0-r0: task do_populate_lic_deploy: Started
+NOTE: recipe core-image-minimal-1.0-r0: task do_populate_lic_deploy: Succeeded
+NOTE: recipe core-image-minimal-1.0-r0: task do_create_image_spdx: Succeeded
+NOTE: Running task 4430 of 4431 (/workspace/poky/meta/recipes-core/images/core-image-minimal.bb:do_create_image_sbom_spdx)
+NOTE: recipe core-image-minimal-1.0-r0: task do_create_image_sbom_spdx: Started
+NOTE: recipe core-image-minimal-1.0-r0: task do_create_image_sbom_spdx: Succeeded
+NOTE: Running noexec task 4431 of 4431 (/workspace/poky/meta/recipes-core/images/core-image-minimal.bb:do_build)
+NOTE: Tasks Summary: Attempted 4431 tasks of which 4424 didn't need to be rerun and all succeeded.
+exit=0
