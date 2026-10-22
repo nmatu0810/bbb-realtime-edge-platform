@@ -5,8 +5,8 @@ Spec gốc: `/home/tus/workspace/Project/project-B-embedded-linux.md`.
 Tiến độ: đọc `docs/PROGRESS.md` trước khi làm bất cứ việc gì.
 
 ## Bắt đầu một session
-Tuần 1 và 2 xong (2026-10-20). Tuần 3 chưa bắt đầu.
-1. `docs/PROGRESS.md`: mục trên cùng là bàn giao tuần 3 (hệ thống đang chạy, quy trình, checklist kèm điểm xuất phát đã kiểm, dữ kiện phải hỏi, bẫy đã gặp). Các mục dưới là tuần 1, 2
+Tuần 1, 2 xong (2026-10-20), tuần 3 xong (2026-10-22, kernel RT đang là mặc định). Tuần 4 (driver) chưa bắt đầu.
+1. `docs/PROGRESS.md`: mục trên cùng là tuần 3 (kết quả, việc để lại cho tuần 4/6, GĐ2). Mục "bàn giao tuần 3" ngay dưới có quy trình và bẫy đã gặp, vẫn đúng
 2. `docs/ROADMAP.md`: kế hoạch đã điều chỉnh, hợp đồng driver, phân chia GĐ1/GĐ2
 3. `docs/boot-flow.md` (chuỗi boot thật, PHY, systemd), `docs/emmc-bootloader-disable.md` (khôi phục eMMC)
 4. Spec gốc, phần tuần đang làm

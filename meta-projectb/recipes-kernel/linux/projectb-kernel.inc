@@ -1,5 +1,7 @@
-# Phần dùng chung cho linux-yocto và linux-yocto-rt: hai kernel chỉ được khác nhau
-# ở preemption, để so benchmark RT/non-RT là so đúng một biến.
+# Phần dùng chung cho linux-yocto và linux-yocto-rt: cấu hình của project phải giống
+# nhau ở cả hai kernel. Lưu ý ktype standard và preempt-rt của yocto-kernel-cache khác
+# nhau ~140 dòng .config ngoài preemption (-Os/-O2, KFENCE, KGDB, BPF_JIT...), xem
+# PROGRESS tuần 3; muốn so benchmark công bằng phải san bằng bằng fragment.
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 # hid-multitouch: cảm ứng màn 7" (WCH 1a86:e5e3). Không có nó, thiết bị rơi về

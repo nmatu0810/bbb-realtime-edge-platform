@@ -5,7 +5,9 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
-## Tuần 3 — đang làm (từ 2026-10-21)
+## Tuần 3 — màn, MPU6050, overlay, kernel RT (2026-10-21 đến 10-22)
+
+Tiêu chí spec: màn hiện hình (1024x600, cả non-RT và RT), `i2cdetect` thấy 0x68, ảnh logic analyzer `docs/i2c-whoami-2026-10-22.png`, kernel RT boot và chịu tải, `inv_mpu6050` không bật ở cả hai kernel. Còn: tag `bringup-done`. Câu hỏi để Tus tự trả lời: ai gửi NACK ở byte đọc cuối; chữ in trên con chip.
 
 **Đã làm**
 - Mốc non-RT ở `~/projectb-baseline/non-rt-20261020/`, `sha256sum -c` OK cả 6 file, hash khớp bàn giao
@@ -40,9 +42,22 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 - Bẫy: `find /proc/device-tree -name ...` ra rỗng vì điểm bắt đầu là symlink; dùng `/proc/device-tree/`
 - 12 dòng `Fixed dependency cycle(s)` (tda19988 ↔ lcdc) và 2 dòng `tps65217 ... Failed to locate of_node` có ở mọi log từ 2026-10-16, không liên quan overlay
 
+**Kernel RT (2026-10-22)**
+- `linux-yocto-rt_%.bbappend` (`COMPATIBLE_MACHINE`, `KMACHINE = beaglebone` → `bsp/beaglebone/beaglebone-preempt-rt.scc` có sẵn trong kernel-cache), phần chung chuyển sang `projectb-kernel.inc`; `PREFERRED_PROVIDER_virtual/kernel = "linux-yocto-rt"` trong template `local.conf`. Nguồn RT `b463156a` (merge `v6.12/standard/base` vào `preempt-rt/base`) đã có trong `downloads/`
+- Mốc non-RT thứ hai trước khi build: `~/projectb-baseline/non-rt-20261022/` (ảnh `rootfs-20261022155529`, có fragment, `-@`, overlay), `sha256sum -c` OK
+- Build: 57 task, không WARNING. Kernel `6.12.47-rt6-yocto-preempt-rt`, `zImage` `818fb8a7…`, dtb vẫn `cd9c1103…` (cùng nguồn dts). `.config`: `PREEMPT_RT=y`, `HID_MULTITOUCH=m`, `# CONFIG_IIO is not set` (không có `INV_MPU6050`). Ảnh `rootfs-20261022161133.wic`
+- `.config` RT so với non-RT lệch 141 dòng, không chỉ preemption: RT `-O2` (non-RT `-Os`), không KFENCE, không KGDB/KDB, không BPF_JIT/BPF_SYSCALL, CIFS/BRIDGE thành module, có KEXEC/CRASH_DUMP. Giống nhau: `HZ=100`, FTRACE, SCHED_DEBUG, LATENCYTOP, CPU_IDLE. Đây là khác biệt của ktype `standard`/`preempt-rt` trong kernel-cache. Trước benchmark tuần 6: san bằng bằng fragment trong `projectb-kernel.inc` (ít nhất `-Os`/`-O2`, KFENCE, BPF), hoặc ghi rõ trong báo cáo. Hệ quả đã thấy: systemd báo `unit configures an IP firewall, but the local system does not support BPF/cgroup firewalling` (chỉ có ở RT)
+- Trên bo (`boot-serial-2026-10-22-rt.log`): `uname -a` = `6.12.47-rt6-yocto-preempt-rt #1 PREEMPT_RT`, `/sys/kernel/realtime` = 1, `is-system-running` = `running`, `--failed` rỗng, `eth0` có IP. Overlay vẫn nạp (`imu@68` có), `WHO_AM_I` = 0x70. `hid-multitouch` RT nạp được; `vermagic` = `6.12.47-rt6-yocto-preempt-rt preempt mod_unload ARMv7 p2v8` (chỉ ghi `preempt`, phân biệt bằng chuỗi phiên bản). Các dòng `l3-aon-clkctrl failed to disable`, `ti-sysc ... -16`, `regulatory.db` có y hệt ở log non-RT
+- IRQ threaded ép buộc: `irq/27-4819c000.i2c`, `irq/26-4804c000.gpio` (GPIO1, có P9_12)... đều `SCHED_FIFO` 50 (đọc trường 40/41 của `/proc/<pid>/stat`; busybox `ps` không có `-eo`). Ưu tiên luồng `SCHED_FIFO` của `sensord` GĐ2 phải tính tới mức 50 này
+- `stress-ng --cpu 1 --io 1 --vm 1 --vm-bytes 64M --timeout 120s`: passed 3, failed 0; không có cảnh báo kernel trong lúc chạy (`journalctl -k -p warning`)
+- Màn bật sau khi BBB boot: tda998x `read edid timeout` ×2 lúc HPD lên, DRM dùng mode dự phòng (`1024x768` đầu danh sách). Reboot với màn bật sẵn: không timeout, `fb0` có, mode `1024x600`, `virtual_size` `1024,600` như non-RT. Thứ tự cấp nguồn, không phải RT. Ghi cho HMI: bật màn trước BBB, hoặc xử lý hotplug ở GĐ2
+
 **Việc tiếp theo**
-- ~~Build overlay MPU6050~~ xong (fragment `hid-multitouch` và `libinput-bin` đã có trong ảnh 20261021125313; `libinput-bin` thay `evtest` vì `evtest` ở meta-oe, chưa thêm layer đó, GĐ2 thêm khi cần LVGL/GoogleTest)
-- Kernel RT, tag `bringup-done`
+- Tag `bringup-done` sau commit RT
+- Tuần 4 (driver, chạy trên kernel RT): đọc `WHO_AM_I` lúc probe để chọn thông số 6500/6050; đọc burst 14 byte (không đọc từng byte); khi bind, kiểm `devmem 0x44E10878` từ `0x37` thành `0x27` và `i2cdetect` ô 0x68 thành `UU`; `MODULE_DEVICE_TABLE(of)` với `projectb,mpu6050` để udev tự nạp (modalias `of:NimuT(null)Cprojectb,mpu6050`)
+- Tuần 6: san bằng `.config` RT/non-RT trước khi so độ trễ
+- GĐ2: cảm ứng tự ngắt USB khi chạm (hub có nguồn, đo VBUS); `Size` cảm ứng khai sai (228x137 mm); EDID khi màn bật sau BBB; meta-oe cho LVGL/GoogleTest/evtest
+- `libinput-bin` thay `evtest` (evtest ở meta-oe)
 
 ---
 
