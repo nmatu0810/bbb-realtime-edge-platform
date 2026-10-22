@@ -25,7 +25,16 @@ IMAGE_INSTALL:append = " \
     kernel-module-usb-f-ncm \
     projectb-ssh-keys \
     projectb-phy-retry \
+    kernel-module-hid-multitouch \
+    libinput-bin \
 "
+
+# kernel-module-hid-multitouch phải ghi tay: MACHINE_EXTRA_RRECOMMENDS = "kernel-modules"
+# chỉ được kéo qua packagegroup-base, core-image-minimal không dùng nên ảnh không có
+# module nào ngoài những gói khai báo ở đây.
+# libinput-bin thay cho evtest (evtest ở meta-oe, chưa thêm layer đó): "libinput
+# list-devices" cho biết thiết bị có được nhận là touchscreen không, "libinput
+# debug-events" in sự kiện chạm. libinput cũng là backend input của LVGL ở GĐ2.
 
 # kernel-module-g-ncm: đường SSH dự phòng qua USB gadget (usb0), vì PHY Ethernet
 # thường fail probe -EIO ở boot lạnh (xem ghi chú điều tra PHY). Tạm thời, bỏ khi
