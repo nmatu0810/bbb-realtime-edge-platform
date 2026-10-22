@@ -5,6 +5,38 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 3 — đang làm (từ 2026-10-21)
+
+**Đã làm**
+- Mốc non-RT ở `~/projectb-baseline/non-rt-20261020/`, `sha256sum -c` OK cả 6 file, hash khớp bàn giao
+- Màn 7" HDMI + cảm ứng USB (màn nguồn 5V 3A riêng, BBB 5V 2A jack): hiện login trên tty1 không cần sửa gì. `tda998x 0-0070` (I2C0) → `tilcdc ... bound` → `fb0`. EDID ưu tiên `1024x600`, `fb0` = `1024,600`. Log kernel không lên màn vì cmdline chỉ có `console=ttyS0`; getty@tty1 là do systemd
+- Cảm ứng: WCH `1a86:e5e3` (USB→I2C), trên BBB nhận bằng `hid-generic` (`CONFIG_HID_MULTITOUCH` không bật), `event0`, `PROP=0`, chỉ X/Y + `BTN_TOUCH`. `hexdump` thấy sự kiện khi chạm (16 byte/sự kiện trên ARM32)
+
+**Cảm ứng tự ngắt USB trên BBB** (đếm `USB disconnect` trong `journalctl -k -b`, 2026-10-21 UTC)
+- Mỗi lần ngắt, thiết bị quay lại sau 0.64–0.66 s. Bốn lần trong 9–27 s đầu boot, sau đó chỉ khi chạm
+- A: không đụng gì 11 phút: 0. B: vuốt ~1.6 phút: 39. C: lắc dây 1 phút: 1. D: chỉ tap (12:29:26→12:32:01): 26. E: vuốt, tay kia giữ vỏ cổng Ethernet/USB của BBB, 1 phút: 21
+- E không giảm so với B: bác giả thuyết điện tích từ người đi qua mass USB
+- F: cắm cảm ứng vào laptop (`xhci`, nhận bằng `hid-multitouch`, `PROP=2` DIRECT), chạm 1 phút: 0 lần ngắt. `hexdump` trên laptop có MT kiểu B (`ABS_MT_TRACKING_ID/POSITION_X/Y`), gói đều ~10.8 ms kể cả khi ngón đứng yên; trên BBB chỉ có sự kiện khi đổi trạng thái
+- Sau F nghi driver/chế độ thiết bị. Thêm `CONFIG_HID_MULTITOUCH=m` (`linux-yocto_%.bbappend` + `files/hid-multitouch.cfg`), ảnh `rootfs-20261021125313.wic`, `zImage` `a73cf9fb…`, dtb vẫn `23abc1f3…`, `.config` chỉ lệch đúng dòng đó. Boot: `hid-generic` nhận lúc 9.07 s, udev nạp module, `hid-multitouch` nhận lại cùng id `.0001` lúc 15.60 s (reprobe trong `hid-core.c`). `libinput list-devices`: `Capabilities: touch`, `Size: 228x137mm` (descriptor khai sai, màn 7" thật khoảng 154x86 mm). Boot này không có disconnect nào
+- G: `hid-multitouch`, vuốt 13:29:47→13:30:29 (42 s): 15 lần ngắt. Bác giả thuyết driver/chế độ. Pha H (về `hid-generic`) không cần làm nữa
+- Còn lại: `musb` so với `xhci`, nguồn VBUS của cổng USB host BBB (bộ cảm ứng có thể ăn nguồn từ VBUS chứ không từ nguồn màn), mass qua HDMI + USB. Mẫu reconnect sau ~0.65 s giống thiết bị tự reset (sụt nguồn?) hơn là host gỡ. Để GĐ2 (HMI): thử hub USB có nguồn riêng, đo VBUS lúc chạm
+- Fragment vẫn giữ vì HMI cần (`INPUT_PROP_DIRECT`, MT). Kernel RT dùng chung fragment; mốc benchmark non-RT khi so RT sẽ là kernel có fragment, không phải `non-rt-20261020`
+
+**MPU6050 (2026-10-22)**
+- Nối: VCC→P9_3, GND→P9_1, SCL→P9_19, SDA→P9_20, INT→P9_12, AD0→P9_2. Lần đầu `i2cdetect -y -r 2` trống, `i2cget` `Read failed`: SDA cắm nhầm chân. Đo DCV lúc rảnh không bắt được lỗi này (chân nhầm cũng ở mức cao); chỉ thấy khi có giao dịch
+- Pinmux đúng trước cả khi có overlay: `devmem 0x44E10978/0x44E1097C` = `0x33` (mode 3, pull-up, RXACTIVE), khớp `i2c2_pins` trong `am335x-bone-common.dtsi`
+- Sau khi cắm lại: `i2cdetect` thấy `68`, 200/200 lần đọc OK. `WHO_AM_I` (0x75) = `0x70`, `PWR_MGMT_1` (0x6B) = `0x01` ngay sau cấp nguồn. Cả hai khớp giá trị reset của MPU-6500 (Register Map rev 2.1: 107 = 0x01, 117 = 0x70), không phải MPU-6050 (107 = 0x40, 117 = 0x68). Chip trên module là họ MPU-6500 (hoặc clone khai như vậy)
+- Dữ liệu thô (`i2cdump -y -r 0x3b-0x48 2 0x68 b`, ±2g, ±250 °/s mặc định): nằm phẳng Z = 16064, lật úp Z = −16740, X/Y < 0.04 g. Hiệu chỉnh 2 điểm trục Z: offset −338 LSB (−0.021 g), độ nhạy 16402 LSB/g (lệch 0.1% so với 16384). Nhiệt độ 3904–3952 → 32.7–32.8 °C theo công thức 6500 (công thức 6050 ra ~48 °C, vô lý). Gyro đứng yên 0.2–0.8 °/s (zero-rate offset). `i2cdump -r` đọc từng byte riêng lẻ nên có thể bị xé giá trị; driver phải đọc burst 14 byte hoặc qua FIFO
+- Ảnh hưởng driver: nhiệt độ `TEMP_OUT/333.87 + 21` (6050: `/340 + 36.53`), FIFO 512 byte (6050: 1024), có `ACCEL_CONFIG2` (0x1D). Driver đọc `WHO_AM_I` lúc probe để chọn thông số, như `inv_mpu6050` mainline
+
+- Logic analyzer (clone Saleae FX2, PulseView `fx2lafw`, 2 MHz): `docs/i2c-whoami-2026-10-22.png` + `.sr` (đoạn đã chọn, 1237 mẫu). `S, 0xD0 ACK, 0x75 ACK, Sr, 0xD1 ACK, 0x70 NACK, P`: repeated START, không STOP giữa chọn thanh ghi và đọc. Phân tích file `.sr`: 38 cạnh lên SCL (36 bit + Sr + P), chu kỳ trung bình 10.17 µs (~98 kHz, DT đặt 100 kHz), START→STOP 455.5 µs cho 1 byte dữ liệu. Ảnh cuối có nhãn SCL/SDA và nhãn decoder đầy đủ (còn khoảng trống phía trên, cắt khi đưa vào báo cáo)
+
+**Việc tiếp theo**
+- Build overlay MPU6050 (fragment `hid-multitouch` và `libinput-bin` đã có trong ảnh 20261021125313; `libinput-bin` thay `evtest` vì `evtest` ở meta-oe, chưa thêm layer đó, GĐ2 thêm khi cần LVGL/GoogleTest)
+- Kernel RT, tag `bringup-done`
+
+---
+
 ## Tuần 3 — bàn giao, chưa bắt đầu (ghi 2026-10-20)
 
 Đọc mục này trước khi bắt đầu tuần 3 ở session mới. Tuần 1 và 2 đã xong, chi tiết ở các mục bên dưới.
@@ -41,10 +73,10 @@ Xong tuần 3 khi: màn hiện hình, `i2cdetect` thấy MPU6050, có ảnh logi
 
 **Bẫy đã gặp, nhớ để không lặp lại**
 - `dd` của busybox không có `conv=fsync`; lệnh lỗi thì không ghi gì, phải đọc lại để kiểm
-- zsh: glob không khớp hủy cả lệnh; `~` không mở rộng sau `if=`; `=====` bị hiểu là `=cmd`; `ls` là alias `eza` có icon nên đừng `$(ls ...)`
+- zsh: glob không khớp hủy cả lệnh; `~` không mở rộng sau `if=`; `=====` bị hiểu là `=cmd`; `ls` là alias `eza` có icon nên đừng `$(ls ...)`; dấu nhắc đổi thành `❯❯`/`quote>` là còn nháy chưa đóng, lệnh chưa chạy
 - `picocom` cũ giữ khóa cổng (`cannot lock /dev/ttyUSB0`): thoát bằng `Ctrl-A Ctrl-X`
 - `ssh ... | grep` che dấu nhắc của phiên; dùng `ssh ... 'lệnh'` để phiên tự đóng
-- Đồng hồ bo không có pin, giờ journal sai; journal ở RAM, mất khi tắt nguồn
+- Đồng hồ bo không có pin: lúc boot giờ là khoảng lúc build ảnh, `systemd-timesyncd` chỉnh đúng khi có mạng, nên các dòng journal trước lúc đó mang giờ sai. Tính khoảng thời gian thì dùng `journalctl -o short-monotonic`. Journal ở RAM, mất khi tắt nguồn
 - `git commit` lấy cả những gì đã stage từ trước: xem `git diff --cached --name-status` trước mỗi commit
 
 ---

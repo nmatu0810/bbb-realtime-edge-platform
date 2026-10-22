@@ -25,14 +25,14 @@ Memory của Claude về project này nằm ở thư mục `~` (`.claude/project
 - Cache mã nguồn: `downloads/` (không commit, `DL_DIR=/workspace/downloads`)
 - Layer của dự án: `meta-projectb/`
 - Ghi chú kiến thức: `~/workspace/VKU/DoAn/week1-knowledge-summary.md`, `week2-knowledge-summary.md` (nằm ngoài repo, có chủ đích)
-- Phải giữ, nằm ngoài repo: `~/emmc-backup/` (đường duy nhất khôi phục bootloader eMMC, xem `docs/emmc-bootloader-disable.md`), khóa riêng `~/.ssh/id_ed25519_bbb` (mất thì chỉ còn serial)
+- Phải giữ, nằm ngoài repo: `~/emmc-backup/` (đường duy nhất khôi phục bootloader eMMC, xem `docs/emmc-bootloader-disable.md`), khóa riêng `~/.ssh/id_ed25519_bbb` (mất thì chỉ còn serial), mốc non-RT `~/projectb-baseline/non-rt-20261020/` (wic, `zImage`, dtb, modules, manifest, kernel `.config`, có `SHA256SUMS`; lưu 2026-10-20 trước khi build RT, dùng so benchmark)
 
 ## Đã dọn (quyết định 2026-10-20)
 Xóa vì thuộc cấu hình đã bị thay thế, không tuần nào sau cần (đối chiếu ROADMAP tuần 3 đến GĐ2):
 - `~/workspace_projectb_old` (57G): build `build-projectb` cũ, repo chưa từng commit. Đã so từng file ngoài `poky/`: chỉ hai file không có ở đâu khác, đã chép sang `docs/week1-baseline-build.log` và `scripts/yocto.sh`
 - `poky/build/` (53G): build sysvinit tuần 1–2, ảnh còn `allow-empty-password`. Mất theo nó: `zImage`/`vmlinux`/`.config` tuần 1, dữ liệu để kiểm giả thuyết `pigz` (PROGRESS, câu hỏi mở); muốn kiểm thì làm thí nghiệm lại trong `build-clean`
 - `cache-test/` (5.9G): bản `downloads` của bài thử tải-từ-đầu tuần 1, không conf nào trỏ tới
-- Trước khi bật kernel RT (tuần 3): lưu ảnh + `zImage` + dtb non-RT hiện tại làm mốc benchmark, vì `build-clean` sẽ bị build lại thành RT
+- Mốc non-RT trước khi bật kernel RT: đã lưu 2026-10-20 ở `~/projectb-baseline/non-rt-20261020/` (`build-clean` sẽ bị build lại thành RT)
 
 ## Lệnh hay dùng
     docker run --rm -it -v ~/workspace_projectb:/workspace yocto-build
@@ -50,6 +50,7 @@ Xóa vì thuộc cấu hình đã bị thay thế, không tuần nào sau cần 
 
 ## Việc chưa làm, cần nhớ
 - Kế hoạch đã điều chỉnh ngày 2026-10-16, xem `docs/ROADMAP.md` (phân chia GĐ1/GĐ2, lý do). Spec gốc đã cập nhật theo, bản trước khi sửa ở scratchpad của session đó.
+- Chip thật trên module là họ MPU-6500, không phải MPU-6050 (kiểm 2026-10-22: `WHO_AM_I` = 0x70, `PWR_MGMT_1` reset = 0x01; địa chỉ I2C vẫn 0x68). Driver phải đọc `WHO_AM_I` lúc probe; khác 6050 ở công thức nhiệt độ, kích thước FIFO, `ACCEL_CONFIG2`. Tên `mpu6050` trong project giữ nguyên. Datasheet ở `~/workspace/VKU/DoAn/Datasheet/`: `MPU-6500-Register-Map-rev2.1.pdf` (RM-MPU-6500A-00, 2013), `MPU-6500-Product-Spec-rev1.1.pdf` (PS-MPU-6500A-01 rev 1.1, 2014; bản mới nhất rev 1.3 trên trang TDK không tải được)
 - MPU6050 **không có ngắt FIFO watermark**. INT_ENABLE có DATA_RDY, FIFO_OFLOW, I2C_MST và các ngắt chuyển động (Motion, Zero-motion, Free-fall). Đã chốt: ngắt DATA_RDY + đọc FIFO theo lô trong threaded IRQ.
 - Đã chốt hợp đồng driver ↔ userspace: `/dev/mpu6050` trả bản ghi nhị phân qua `read()`, `poll()` + `ioctl()`, struct trong header uapi dùng chung; sysfs chỉ cấu hình. Chương trình test GĐ1 dùng `poll()`, không đọc sysfs.
 - GĐ1 thêm: cmdline/extlinux trong layer (tuần 2), overlay MPU6050 + pinmux trong layer, kiểm bằng `devmem` của busybox (tuần 3; bật applet bằng `busybox_%.bbappend`, oe-core không có `devmem2`). Phần còn lại (machine conf, watchdog, udev, `sensord`, shm, mq, benchmark runner) là GĐ2.
