@@ -6,6 +6,11 @@ require recipes-core/images/core-image-minimal.bb
 # beaglebone-yocto.wks của meta-yocto-bsp. Kernel cmdline sửa ở projectb-extlinux.conf.
 WKS_FILE = "projectb.wks"
 
+# Overlay lên phân vùng boot (FAT) ở /overlays/, extlinux nạp bằng fdtoverlays.
+# Cú pháp "nguồn;đích": nguồn tính từ DEPLOY_DIR_IMAGE.
+IMAGE_BOOT_FILES:append = " devicetree/mpu6050.dtbo;overlays/mpu6050.dtbo"
+do_image_wic[depends] += "projectb-overlays:do_deploy"
+
 # SSH server qua image feature (kéo packagegroup-core-ssh-openssh),
 # thay vì ghi tay "openssh" vào IMAGE_INSTALL.
 IMAGE_FEATURES += "ssh-server-openssh"

@@ -25,14 +25,14 @@ Memory của Claude về project này nằm ở thư mục `~` (`.claude/project
 - Cache mã nguồn: `downloads/` (không commit, `DL_DIR=/workspace/downloads`)
 - Layer của dự án: `meta-projectb/`
 - Ghi chú kiến thức: `~/workspace/VKU/DoAn/week1-knowledge-summary.md`, `week2-knowledge-summary.md` (nằm ngoài repo, có chủ đích)
-- Phải giữ, nằm ngoài repo: `~/emmc-backup/` (đường duy nhất khôi phục bootloader eMMC, xem `docs/emmc-bootloader-disable.md`), khóa riêng `~/.ssh/id_ed25519_bbb` (mất thì chỉ còn serial), mốc non-RT `~/projectb-baseline/non-rt-20261020/` (wic, `zImage`, dtb, modules, manifest, kernel `.config`, có `SHA256SUMS`; lưu 2026-10-20 trước khi build RT, dùng so benchmark)
+- Phải giữ, nằm ngoài repo: `~/emmc-backup/` (đường duy nhất khôi phục bootloader eMMC, xem `docs/emmc-bootloader-disable.md`), khóa riêng `~/.ssh/id_ed25519_bbb` (mất thì chỉ còn serial), mốc non-RT `~/projectb-baseline/`: `non-rt-20261020/` (ảnh tuần 2) và `non-rt-20261022/` (mốc benchmark: có fragment `hid-multitouch`, dtb `-@`, overlay, ảnh `rootfs-20261022155529`; thêm `mpu6050.dtbo`). Mỗi thư mục có wic, `zImage`, dtb, modules, manifest, kernel `.config`, `SHA256SUMS`
 
 ## Đã dọn (quyết định 2026-10-20)
 Xóa vì thuộc cấu hình đã bị thay thế, không tuần nào sau cần (đối chiếu ROADMAP tuần 3 đến GĐ2):
 - `~/workspace_projectb_old` (57G): build `build-projectb` cũ, repo chưa từng commit. Đã so từng file ngoài `poky/`: chỉ hai file không có ở đâu khác, đã chép sang `docs/week1-baseline-build.log` và `scripts/yocto.sh`
 - `poky/build/` (53G): build sysvinit tuần 1–2, ảnh còn `allow-empty-password`. Mất theo nó: `zImage`/`vmlinux`/`.config` tuần 1, dữ liệu để kiểm giả thuyết `pigz` (PROGRESS, câu hỏi mở); muốn kiểm thì làm thí nghiệm lại trong `build-clean`
 - `cache-test/` (5.9G): bản `downloads` của bài thử tải-từ-đầu tuần 1, không conf nào trỏ tới
-- Mốc non-RT trước khi bật kernel RT: đã lưu 2026-10-20 ở `~/projectb-baseline/non-rt-20261020/` (`build-clean` sẽ bị build lại thành RT)
+- Mốc non-RT trước khi bật kernel RT: `~/projectb-baseline/non-rt-20261020/` và `non-rt-20261022/` (`build-clean` build lại thành RT; bỏ `PREFERRED_PROVIDER_virtual/kernel` trong template để về non-RT)
 
 ## Lệnh hay dùng
     docker run --rm -it -v ~/workspace_projectb:/workspace yocto-build

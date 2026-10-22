@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * MPU6050 (chip thật là họ MPU-6500, WHO_AM_I = 0x70) trên I2C2 của BeagleBone Black.
+ * SDA P9_20, SCL P9_19: pinmux đã có trong dtb gốc (i2c2_pins), không khai lại.
+ * INT P9_12 = gpio1_28 (pad gpmc_ben1, offset 0x878), mode 7, input, kéo xuống.
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/am33xx.h>
+
+&am33xx_pinmux {
+	mpu6050_int_pins: mpu6050-int-pins {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_GPMC_BEN1, PIN_INPUT_PULLDOWN, MUX_MODE7)	/* P9_12, gpio1_28 */
+		>;
+	};
+};
+
+&i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	imu@68 {
+		compatible = "projectb,mpu6050";
+		reg = <0x68>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mpu6050_int_pins>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <28 IRQ_TYPE_EDGE_RISING>;
+	};
+};

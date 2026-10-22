@@ -31,8 +31,17 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 - Logic analyzer (clone Saleae FX2, PulseView `fx2lafw`, 2 MHz): `docs/i2c-whoami-2026-10-22.png` + `.sr` (đoạn đã chọn, 1237 mẫu). `S, 0xD0 ACK, 0x75 ACK, Sr, 0xD1 ACK, 0x70 NACK, P`: repeated START, không STOP giữa chọn thanh ghi và đọc. Phân tích file `.sr`: 38 cạnh lên SCL (36 bit + Sr + P), chu kỳ trung bình 10.17 µs (~98 kHz, DT đặt 100 kHz), START→STOP 455.5 µs cho 1 byte dữ liệu. Ảnh cuối có nhãn SCL/SDA và nhãn decoder đầy đủ (còn khoảng trống phía trên, cắt khi đưa vào báo cáo)
 
+**Overlay MPU6050 (2026-10-22)**
+- `recipes-bsp/projectb-overlays` (`inherit devicetree`, `files/mpu6050.dts`): node `imu@68` dưới `&i2c2`, `compatible = "projectb,mpu6050"` (chuỗi riêng để `inv_mpu6050` không bao giờ nhận), `interrupt-parent = <&gpio1>`, `interrupts = <28 IRQ_TYPE_EDGE_RISING>`, pinctrl P9_12 (`0x878`) mode 7 input pull-down (`0x27`). Không khai lại pinmux SDA/SCL (dtb gốc đã giữ)
+- dtb gốc không có `__symbols__` → `fdtoverlay` thử offline báo `FDT_ERR_BADOFFSET ... compiled the base blob with '-@'`; U-Boot gặp lỗi này chỉ in `Failed to apply overlay` rồi boot tiếp. Thêm `KERNEL_DTC_FLAGS = "-@"` vào `linux-yocto_%.bbappend`: dtb `cd9c1103…` (trước `23abc1f3…`), `zImage` giữ `a73cf9fb…`
+- `IMAGE_BOOT_FILES:append` đưa `devicetree/mpu6050.dtbo` vào `/overlays/` trên FAT, `do_image_wic[depends]` chờ overlay; extlinux bỏ comment `fdtoverlays`. Ảnh `rootfs-20261022155529.wic`, `.dtbo` `1a1a0a24…` (kiểm bằng mtools trên phân vùng boot)
+- Trên bo (`boot-serial-2026-10-22-overlay.log`): U-Boot `Retrieving file: /overlays/mpu6050.dtbo`, không báo lỗi. `/proc/device-tree/.../i2c@0/imu@68` có, `compatible` đúng, `interrupts` = `00 00 00 1c 00 00 00 01`. I2C core tạo client `2-0068` (`name` = `mpu6050`, `modalias` = `of:NimuT(null)Cprojectb,mpu6050`), chưa có driver. `i2cdetect` vẫn `68` (chưa `UU`)
+- `devmem 0x44E10878` = `0x37` (mode 7, input, kéo lên), chưa phải `0x27`: pinctrl của thiết bị chỉ áp khi driver probe (`pinctrl_bind_pins` trong `really_probe`). Tuần 4 đọc lại khi driver bind, kỳ vọng `0x27`
+- Bẫy: `find /proc/device-tree -name ...` ra rỗng vì điểm bắt đầu là symlink; dùng `/proc/device-tree/`
+- 12 dòng `Fixed dependency cycle(s)` (tda19988 ↔ lcdc) và 2 dòng `tps65217 ... Failed to locate of_node` có ở mọi log từ 2026-10-16, không liên quan overlay
+
 **Việc tiếp theo**
-- Build overlay MPU6050 (fragment `hid-multitouch` và `libinput-bin` đã có trong ảnh 20261021125313; `libinput-bin` thay `evtest` vì `evtest` ở meta-oe, chưa thêm layer đó, GĐ2 thêm khi cần LVGL/GoogleTest)
+- ~~Build overlay MPU6050~~ xong (fragment `hid-multitouch` và `libinput-bin` đã có trong ảnh 20261021125313; `libinput-bin` thay `evtest` vì `evtest` ở meta-oe, chưa thêm layer đó, GĐ2 thêm khi cần LVGL/GoogleTest)
 - Kernel RT, tag `bringup-done`
 
 ---
