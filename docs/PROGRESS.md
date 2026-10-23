@@ -5,6 +5,56 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 4 — bàn giao, chưa bắt đầu (ghi 2026-10-22)
+
+Đọc mục này trước khi bắt đầu tuần 4 ở session mới. Tuần 1–3 xong, tag `bringup-done` (`33d90b0`, đã push). Chi tiết ở các mục bên dưới; ghi chú kiến thức tuần 3 ở `~/workspace/VKU/DoAn/week3-knowledge-summary.md`.
+
+**Hệ thống đang chạy (sau tuần 3)**
+- Bo chạy ảnh RT `rootfs-20261022161133.wic`: kernel `6.12.47-rt6-yocto-preempt-rt` (`zImage` `818fb8a7…`), dtb `am335x-boneblack.dtb` có `__symbols__` (`cd9c1103…`, giống nhau ở RT và non-RT), U-Boot nạp `/overlays/mpu6050.dtbo` (`1a1a0a24…`) qua `fdtoverlays` trong extlinux
+- Build: `build-clean`, template `local.conf.in` đặt `PREFERRED_PROVIDER_virtual/kernel = "linux-yocto-rt"`. Bỏ dòng đó + `setup-build.sh build-clean` để về non-RT (sstate có cả hai, chỉ build lại image). Phần chung của hai kernel ở `meta-projectb/recipes-kernel/linux/projectb-kernel.inc` (fragment `hid-multitouch.cfg`, `KERNEL_DTC_FLAGS = "-@"`)
+- Mốc non-RT ngoài repo: `~/projectb-baseline/non-rt-20261022/` (mốc benchmark), `non-rt-20261020/` (ảnh tuần 2)
+- Phần cứng: màn 7" HDMI (nguồn 5V 3A riêng, bật trước BBB), cảm ứng USB vào cổng host BBB, BBB nguồn jack 5V 2A. Module MPU: VCC→P9_3, GND→P9_1, SCL→P9_19, SDA→P9_20, INT→P9_12 (gpio1_28), AD0→P9_2. Logic analyzer clone Saleae (PulseView `fx2lafw`) trên laptop
+- Chip là họ MPU-6500 (`WHO_AM_I` 0x70, `PWR_MGMT_1` reset 0x01), địa chỉ 0x68. Datasheet ở `~/workspace/VKU/DoAn/Datasheet/` (Register Map rev 2.1, Product Spec rev 1.1)
+- Trên bo: client I2C `2-0068` (`name` `mpu6050`, `modalias` `of:NimuT(null)Cprojectb,mpu6050`), chưa có driver; `i2cdetect` ô 0x68 hiện `68`; `devmem 0x44E10878` = `0x37`. Thread IRQ của I2C2 và GPIO1 là `SCHED_FIFO` 50
+- Ảnh không có gcc, không có `kernel-devsrc`: module build bằng Yocto, không build trên bo. Có `i2c-tools`, `devmem`, `gdbserver`, `stress-ng`, `rt-tests`, `libinput-bin`, `hid-multitouch`. Busybox: không `ps -eo`, `ip -br`, `dmesg --level`, `head -N` (xem bẫy)
+- SSH chỉ bằng khóa; host key đổi mỗi lần ghi ảnh, so vân tay ECDSA trên serial trước khi `ssh-keygen -R`
+
+**Tuần 4 theo spec**
+Spec không có checklist từng tuần cho 4–8, chỉ có thứ tự: char device API nhị phân + `poll` → I2C subsystem → sysfs cấu hình → ngắt DATA_RDY + đọc FIFO theo lô; test trên cả kernel thường và RT (dòng 166; yêu cầu kernel ở dòng 70, quy tắc GĐ2 ở dòng 152–156). Cột mốc cuối tuần 8: đọc sensor qua `/dev/mpu6050` + `poll()`, interrupt chạy. Hợp đồng driver ↔ userspace đã chốt trong `docs/ROADMAP.md`. Session tuần 4 cần đề xuất kế hoạch tuần 4–8 (spec chưa chia) rồi bắt đầu.
+
+**Điểm xuất phát đã kiểm cho driver**
+- `i2c_driver` với `of_match_table` khớp `projectb,mpu6050`; `MODULE_DEVICE_TABLE(of, ...)` để udev tự nạp theo modalias
+- Probe: đọc `WHO_AM_I`, chấp nhận 0x70 (và 0x68 nếu muốn hỗ trợ 6050), chọn thông số (nhiệt độ `/333.87 + 21`, FIFO 512 byte, `ACCEL_CONFIG2`). Chip thức sẵn sau reset (`PWR_MGMT_1` = 0x01)
+- Đọc burst 14 byte từ 0x3B trong một giao dịch (`i2c_smbus_read_i2c_block_data` hoặc `i2c_transfer`), big-endian `s16`
+- Struct uapi dùng kiểu độ rộng cố định (ABI ARM32 khác x86_64, đã thấy với `input_event`)
+- Ngắt: `interrupts = <28 IRQ_TYPE_EDGE_RISING>` trên `gpio1`; INT chip mặc định active-high, xung 50 µs (`INT_PIN_CFG` = 0). `request_threaded_irq` → thread `SCHED_FIFO` 50 trên RT
+- Khi driver bind phải thấy: `devmem 0x44E10878` từ `0x37` thành `0x27` (pinctrl áp lúc probe), `i2cdetect` ô 0x68 thành `UU`
+- Mẫu recipe module: `poky/meta-skeleton/recipes-kernel/hello-mod/` (`inherit module`). Spec quy tắc 1: driver ở thư mục riêng trong repo, có recipe. Module build cho kernel đang chọn (`vermagic` theo chuỗi phiên bản), nên thử trên non-RT phải đổi `PREFERRED_PROVIDER` rồi build lại
+- `.config` RT/non-RT lệch ~140 dòng ngoài preemption (xem mục tuần 3). Không ảnh hưởng việc viết driver; san bằng trước tuần 6
+
+**Dữ kiện chỉ người làm có, phải hỏi trước**
+- Câu trả lời của Tus: ai gửi NACK ở byte đọc cuối (để biết đã hiểu giao thức trước khi viết `i2c_transfer`)
+- Chữ in trên con chip
+- Đã đọc những phần nào của MPU-6500 Register Map (`PWR_MGMT_1`, `CONFIG`, `SMPLRT_DIV`, `INT_PIN_CFG`, `INT_ENABLE`, `FIFO_EN`, `USER_CTRL`, `FIFO_COUNT`), kinh nghiệm viết module kernel trước đây (Nothan-OS có driver model)
+- Thời lượng thật của đồ án chuyên ngành (spec dòng 129: nếu ngắn hơn 8 tuần thì dời interrupt sang GĐ2)
+
+**Lệch giữa spec và thực tế (đã quyết, đừng làm theo spec ở các chỗ này)**
+- Spec ghi MPU6050 FIFO 1024 byte (dòng 33): chip thật 512
+- Spec tuần 3 ghi overlay có `pinctrl` cho I2C2: không khai lại, dtb gốc đã giữ chân SDA/SCL
+- Spec ghi `evtest`: dùng `libinput-bin` (evtest ở meta-oe)
+
+**Bẫy đã gặp, nhớ để không lặp lại** (thêm vào danh sách ở mục bàn giao tuần 3)
+- Busybox trên bo: `ip -4 addr show`, `head -n 8`, `journalctl -k -p warning` thay cho `dmesg --level`, đọc `/proc/<pid>/stat` thay cho `ps -eo`
+- `find /proc/device-tree/` (có dấu `/`), không thì không vào symlink
+- Đo điện áp lúc bus rảnh không phát hiện được dây cắm nhầm chân
+- U-Boot bỏ qua overlay không báo lỗi rõ khi dtb thiếu `__symbols__`
+- Màn bật sau BBB thì EDID timeout, DRM chạy mode dự phòng 1024x768
+- Một lần boot "sạch" không chứng minh lỗi đã hết; phải đếm trong điều kiện gây lỗi
+- zsh: biến chứa nhiều đối số không tự tách (dùng mảng); `$VAR:a...` bị hiểu là modifier, viết `${VAR}:...`
+- Log serial: `picocom -g` nối tiếp vào file cũ nếu mở lại cùng tên
+
+---
+
 ## Tuần 3 — màn, MPU6050, overlay, kernel RT (2026-10-21 đến 10-22)
 
 Tiêu chí spec: màn hiện hình (1024x600, cả non-RT và RT), `i2cdetect` thấy 0x68, ảnh logic analyzer `docs/i2c-whoami-2026-10-22.png`, kernel RT boot và chịu tải, `inv_mpu6050` không bật ở cả hai kernel. Còn: tag `bringup-done`. Câu hỏi để Tus tự trả lời: ai gửi NACK ở byte đọc cuối; chữ in trên con chip.
