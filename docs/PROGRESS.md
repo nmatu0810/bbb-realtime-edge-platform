@@ -215,7 +215,7 @@ Tiêu chí spec: màn hiện hình (1024x600, cả non-RT và RT), `i2cdetect` t
 4. Overlay `.dtbo` trong layer (node dưới `&i2c2`, `compatible` riêng, pinctrl I2C2 + INT mode 7 input), nạp qua `fdtoverlays` của extlinux (U-Boot 2025.01 hỗ trợ, `pxe_utils.c`). Kiểm mode chân bằng `devmem 0x44E10000+offset` (tự tra offset trong TRM)
 5. `i2cget` đọc `WHO_AM_I` (0x75), ghi giá trị thật (clone có thể khác 0x68)
 6. Logic analyzer bắt SCL/SDA khi `i2cget`, lưu ảnh cho báo cáo
-7. Kernel RT: `poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb` cùng 6.12.47 (`KBRANCH v6.12/standard/preempt-rt/base`) nhưng `COMPATIBLE_MACHINE` chỉ có qemu, nên cần `.bbappend` trong layer (đây là dòng `.bbappend` kernel dời từ tuần 2) và `PREFERRED_PROVIDER_virtual/kernel`. **Trước khi build RT: lưu ảnh + `zImage` + dtb non-RT hiện tại** làm mốc benchmark (xem CLAUDE.md)
+7. Kernel RT: `poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb` cùng 6.12.47 (`KBRANCH v6.12/standard/preempt-rt/base`) nhưng `COMPATIBLE_MACHINE` chỉ có qemu, nên cần `.bbappend` trong layer (đây là dòng `.bbappend` kernel dời từ tuần 2) và `PREFERRED_PROVIDER_virtual/kernel`. **Trước khi build RT: lưu ảnh + `zImage` + dtb non-RT hiện tại** làm mốc benchmark (`~/projectb-baseline/`)
 8. Xác nhận `inv_mpu6050` không bật: kernel thường đã kiểm, không có `CONFIG_INV_MPU6050*` và không có `CONFIG_IIO`. Kernel RT phải kiểm lại
 9. Git tag `bringup-done`
 
