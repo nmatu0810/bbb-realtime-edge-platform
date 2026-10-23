@@ -12,6 +12,10 @@ INIT_MANAGER = "systemd"
 # đổi qua lại chỉ build lại image). Mốc non-RT: ~/projectb-baseline/.
 PREFERRED_PROVIDER_virtual/kernel = "linux-yocto-rt"
 
+# Kernel debug (lockdep, DEBUG_ATOMIC_SLEEP, hậu tố -debug) trong lúc viết driver.
+# Đặt "0" trước khi đo thời gian/benchmark. Đổi giá trị thì build lại cả module ngoài cây.
+PROJECTB_KERNEL_DEBUG = "1"
+
 # Chỉ dùng khi phát triển: root không mật khẩu (empty-root-password) để vào qua serial.
 # Không có allow-empty-password: cờ đó đặt PermitEmptyPasswords yes trong sshd_config, khi đó
 # sshd cho vào bằng phương thức "none" với root::, SSH không cần khóa (đã gặp 2026-10-20).

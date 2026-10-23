@@ -86,6 +86,41 @@ không cần flash lại thẻ (đầu đọc SD hiện tại không đáng tin)
 
 Nếu tuần 12–14 trễ: cắt AI xuống bản ngưỡng đơn giản trước, giữ `sensord` và HMI.
 
+## Kế hoạch driver tuần 4–8 (chốt 2026-10-23)
+
+Spec chỉ cho thứ tự char device → I2C → sysfs → ngắt + FIFO. Đổi một chỗ: I2C lên trước (chưa probe
+thì char device không có gì để trả). Giao diện (uapi, sysfs) chốt sớm; IRQ ở tuần 6 để tuần 7–8 làm
+buffer. Nguồn dữ liệu và `read`/`poll` tách nhau bằng kfifo: tuần 5 nguồn tạm là `delayed_work`,
+tuần 6–7 thay bằng IRQ + FIFO, phía đọc không đổi.
+
+| Tuần | Việc | Mốc kiểm cuối tuần |
+|---|---|---|
+| 4 | Recipe module, vòng `bitbake` → `scp` → `insmod` (module chưa vào ảnh: udev sẽ tự nạp lúc boot). Fragment debug `DEBUG_ATOMIC_SLEEP` + `PROVE_LOCKING`, bật/tắt bằng biến trong template. Probe: `DEVICE_RESET`, chờ, ghi tường minh mọi thanh ghi cấu hình (kể cả `DLPF_CFG` 1–6, không thì `SMPLRT_DIV` vô hiệu), `WHO_AM_I` chọn thông số. Đọc burst 14 byte | `UU`; `0x44E10878` = `0x27`; chip id trong dmesg; \|a\| ≈ 1 g; 20 vòng `insmod`/`rmmod` + unbind/bind sạch, giá trị cấu hình đọc lại đúng sau mỗi vòng; logic analyzer: một giao dịch 14 byte |
+| 5 | Header uapi (struct 16 byte, `static_assert`), `miscdevice`, kfifo, wait queue, `read` trọn bản ghi, `O_NONBLOCK`, một người mở. Sysfs `sample_rate`, `accel_range`, `dropped`. App test `poll()` có recipe | Lắc → số đổi; đổi `sample_rate` → tốc độ đổi; `strace`; `EINVAL`, `EAGAIN`; `rmmod` khi fd mở bị chặn |
+| 6 | DATA_RDY, `request_threaded_irq` + `IRQF_ONESHOT`, `ktime_get_ns()` ở primary handler. Bỏ `delayed_work` | `/proc/interrupts` tăng đúng `sample_rate`; thread `SCHED_FIFO` 50; logic analyzer INT + I2C; 30 phút với `stress-ng`; lockdep im |
+| 7 | FIFO (`ACCEL` + `TEMP`, 8 byte/mẫu), lô, `ts_ns` nội suy lùi, tràn → `dropped` + reset FIFO. Thí nghiệm tràn có/không reset. Đo thời gian I2C 100 kHz, quyết 400 kHz. Build non-RT + san bằng `.config` chung đợt | `dropped` = 0 ở tốc độ tối đa đã chọn; tràn cố ý → `dropped` tăng, tự hồi; cả hai kernel qua bộ kiểm |
+| 8 | Đường lỗi (I2C lỗi, unbind khi stream), module vào ảnh, tài liệu kiến trúc, ảnh LA, log, diễn tập demo, tag `v1.0-chuyennganh` | Thẻ ghi mới, driver tự nạp, test chạy không thao tác tay |
+
+Ràng buộc đã chốt khi duyệt kế hoạch:
+- "512 chia hết cho 8 nên tràn FIFO không lệch bản ghi" là giả thuyết; datasheet chỉ ghi "oldest data
+  will be lost". Driver luôn reset FIFO khi tràn; tuần 7 kiểm bằng thí nghiệm, chưa kiểm thì không ghi
+  vào báo cáo như sự thật.
+- Probe reset chip bằng `DEVICE_RESET` vì `insmod`/`rmmod` không làm chip mất nguồn: không được dựa
+  vào giá trị reset lúc cấp nguồn.
+- Fragment lockdep đổi kích thước `spinlock_t` mà `vermagic` không đổi: mỗi lần bật/tắt fragment phải
+  build lại module, không dùng lại `.ko` cũ. Số đo thời gian tuần 7 đo trên kernel không có fragment.
+  Chặn bằng hậu tố: `PROJECTB_KERNEL_DEBUG = "1"` thêm `-debug` vào `LINUX_VERSION_EXTENSION` (`:append`,
+  giữ `??=` của `linux-yocto.inc`), vermagic khác nên module lệch bị từ chối. Không chọn `MODVERSIONS`
+  (genksyms, `Module.symvers` cho module ngoài cây). Thử âm: `hid-multitouch.ko` RT không debug lưu ở
+  `~/projectb-baseline/rt-nodebug-ko/` (`9bb08bd2…`), insmod trên kernel debug phải bị từ chối.
+
+Cắt nếu trễ, theo thứ tự: LVGL → ioctl còn một lệnh → FIFO theo lô (giữ DATA_RDY từng mẫu, ~100 Hz)
+→ test non-RT dời đầu GĐ2. Không cắt: uapi, tên sysfs, ngắt.
+
+Ghi nhận cho GĐ2: trên RT `gpio-omap` xin IRQ với cờ 0 (`gpio-omap.c:1077`) nên bị ép thread
+`irq/26-4804c000.gpio`; handler `IRQF_ONESHOT` của driver không bị ép thread (`manage.c:1372`) nhưng
+được gọi từ trong thread đó. `ts_ns` trên RT đã gồm độ trễ đánh thức thread GPIO.
+
 ## Phủ kiến thức sau điều chỉnh
 
 | Mảng | Mục | Ở đâu |

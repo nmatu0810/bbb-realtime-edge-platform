@@ -5,6 +5,27 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 4 — driver MPU6050 (bắt đầu 2026-10-23)
+
+Kế hoạch tuần 4–8 và ràng buộc: `docs/ROADMAP.md`, mục "Kế hoạch driver tuần 4–8".
+
+**Kernel debug cho phát triển driver (2026-10-23)**
+- `files/debug-locking.cfg` (`PROVE_LOCKING`, `DEBUG_ATOMIC_SLEEP`), bật bằng `PROJECTB_KERNEL_DEBUG = "1"` trong template; `projectb-kernel.inc` thêm `-debug` vào `LINUX_VERSION_EXTENSION` bằng `:append` (giữ `??=` của `linux-yocto.inc`). Kiểm `bitbake -e` trước build: RT bật `-yocto-preempt-rt-debug`, tắt `-yocto-preempt-rt` (không thừa ký tự), non-RT `-yocto-standard-debug`
+- Build (`docs/build-2026-10-23-debug.log`): 0 WARNING, `log.do_kernel_configcheck` sạch. `.config` so với mốc chỉ lệch `LOCALVERSION` + những gì hai dòng fragment kéo theo (`LOCKDEP`, `DEBUG_SPINLOCK`, `DEBUG_LOCK_ALLOC`, `DEBUG_RT_MUTEXES`, `DEBUG_WW_MUTEX_SLOWPATH`, `TRACE_IRQFLAGS`, `PROVE_RCU`, `LOCKDEP_*_BITS`, `PREEMPTIRQ_TRACEPOINTS`, `DRM_DEBUG_MODESET_LOCK`). `PROVE_RAW_LOCK_NESTING` tắt (bật khi thử non-RT tuần 7)
+- `zImage` 9059216 → 9800544 byte (+8.2%), `a9872bda…`; dtb, dtbo không đổi. Chuỗi phiên bản lan vào đường dẫn `/lib/modules/` và tên mọi gói kernel. Ảnh `rootfs-20261023085915.wic` (`20fbfbbc…`)
+- Trên bo (`boot-serial-2026-10-23-debug.log`, 2 lần boot): `uname -r` có `-debug`, `debug_locks: 1`, không báo cáo lockdep nào từ driver có sẵn: mốc sạch trước driver. `hid_multitouch` vẫn tự nạp (udev theo `modules.alias`)
+- Thử âm: `hid-multitouch.ko` RT không debug (`~/projectb-baseline/rt-nodebug-ko/`, `9bb08bd2…`) → `insmod` `Invalid module format`, dmesg `version magic '…preempt-rt …' should be '…preempt-rt-debug …'`. Bị chặn ở `check_modinfo` trước bước kiểm trùng tên (`kernel/module/main.c:2842`/`2847`), nên thử được cả khi bản debug đang nạp
+- Mốc RT không debug đầy đủ: `~/projectb-baseline/rt-20261022/` (wic `05bd56a4…`, `zImage` `818fb8a7…`, dtb, dtbo, modules, manifest, `kernel.config` rút từ `zImage` bằng `extract-ikconfig`), `sha256sum -c` OK. Lấy lại từ `sstate-cache` vì deploy đã bị gỡ (bẫy bên dưới)
+
+**Bẫy mới**
+- `bitbake -e` không chạy task nhưng vẫn bắn `ReachableStamps`: đổi `PREFERRED_PROVIDER_virtual/kernel` (kể cả bằng `-R x.conf` chỉ để hỏi biến) làm kernel kia "không còn dùng tới", `sstate_eventhandler_reachablestamps` (`sstate.bbclass`) gỡ `zImage`, dtb, `modules-*.tgz` khỏi deploy và xóa thư mục work của nó. `sstate-cache/` còn nguyên. Bằng chứng: `tmp/log/eventlog/20261023085532.json`, `Removing 1 recipes from the beaglebone_yocto sysroot`. Lưu mốc ra ngoài `tmp/` trước khi đổi kernel
+- `bitbake -e | grep` phải neo `^TÊN=`: phần lịch sử gán in dưới dạng dòng `#` chứa biểu thức chưa tính
+- Đường dẫn dài dán vào terminal bị gãy thành hai lệnh: đặt biến (`WIC=…`) rồi dùng; kiểm `sha256sum $WIC` trước khi ghi thẻ
+- Ảnh có thể không có `sftp-server`: chép file lên bo bằng `ssh … 'cat > /tmp/x' < file`
+- Thông báo kernel in thẳng ra `ttyS0` chen vào giữa stderr của lệnh trên serial
+
+---
+
 ## Tuần 4 — bàn giao, chưa bắt đầu (ghi 2026-10-22)
 
 Đọc mục này trước khi bắt đầu tuần 4 ở session mới. Tuần 1–3 xong, tag `bringup-done` (`33d90b0`, đã push). Chi tiết ở các mục bên dưới; ghi chú kiến thức tuần 3 ở `~/workspace/VKU/DoAn/week3-knowledge-summary.md`.

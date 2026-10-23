@@ -14,3 +14,14 @@ SRC_URI += "file://hid-multitouch.cfg"
 # cần nó để nối nhãn &i2c2, &gpio1, &am33xx_pinmux trong overlay vào dtb gốc.
 # Thiếu thì U-Boot in "Failed to apply overlay" rồi vẫn boot, overlay bị bỏ qua.
 KERNEL_DTC_FLAGS = "-@"
+
+# Kernel debug cho lúc viết driver: lockdep + kiểm ngủ trong ngữ cảnh atomic
+# (files/debug-locking.cfg). Bật bằng PROJECTB_KERNEL_DEBUG = "1" trong local.conf.
+# Hậu tố -debug vào chuỗi phiên bản để vermagic từ chối module build cho kernel
+# không debug (spinlock_t khác kích thước). Dùng :append, không gán =, để giữ
+# -yocto-${LINUX_KERNEL_TYPE} mà linux-yocto.inc đặt bằng ??=.
+# Chưa dùng CONFIG_MODVERSIONS: bắt được mọi lệch ABI nhưng kéo theo genksyms và
+# Module.symvers cho module ngoài cây; hậu tố đủ cho đúng rủi ro này.
+PROJECTB_KERNEL_DEBUG ??= "0"
+SRC_URI += "${@oe.utils.conditional('PROJECTB_KERNEL_DEBUG', '1', 'file://debug-locking.cfg', '', d)}"
+LINUX_VERSION_EXTENSION:append = "${@oe.utils.conditional('PROJECTB_KERNEL_DEBUG', '1', '-debug', '', d)}"

@@ -5,7 +5,7 @@ Spec gốc: `/home/tus/workspace/Project/project-B-embedded-linux.md`.
 Tiến độ: đọc `docs/PROGRESS.md` trước khi làm bất cứ việc gì.
 
 ## Bắt đầu một session
-Tuần 1, 2 xong (2026-10-20), tuần 3 xong (2026-10-22, kernel RT đang là mặc định). Tuần 4 (driver) chưa bắt đầu.
+Tuần 1, 2 xong (2026-10-20), tuần 3 xong (2026-10-22, kernel RT đang là mặc định). Tuần 4 (driver) đang làm từ 2026-10-23: kernel debug (lockdep, hậu tố `-debug`) đang chạy trên bo; kế hoạch tuần 4–8 ở `docs/ROADMAP.md`.
 1. `docs/PROGRESS.md`: mục trên cùng là bàn giao tuần 4 (hệ thống đang chạy, điểm xuất phát cho driver, dữ kiện phải hỏi, lệch spec đã quyết, bẫy). Tiếp theo là kết quả tuần 3, rồi "bàn giao tuần 3" (quy trình build/flash/serial và bẫy cũ, vẫn đúng), rồi tuần 1, 2
 2. `docs/ROADMAP.md`: kế hoạch đã điều chỉnh, hợp đồng driver, phân chia GĐ1/GĐ2
 3. `docs/boot-flow.md` (chuỗi boot thật, PHY, systemd), `docs/emmc-bootloader-disable.md` (khôi phục eMMC)
@@ -25,7 +25,7 @@ Memory của Claude về project này nằm ở thư mục `~` (`.claude/project
 - Cache mã nguồn: `downloads/` (không commit, `DL_DIR=/workspace/downloads`)
 - Layer của dự án: `meta-projectb/`
 - Ghi chú kiến thức: `~/workspace/VKU/DoAn/week1-knowledge-summary.md`, `week2-…`, `week3-…` (nằm ngoài repo, có chủ đích)
-- Phải giữ, nằm ngoài repo: `~/emmc-backup/` (đường duy nhất khôi phục bootloader eMMC, xem `docs/emmc-bootloader-disable.md`), khóa riêng `~/.ssh/id_ed25519_bbb` (mất thì chỉ còn serial), mốc non-RT `~/projectb-baseline/`: `non-rt-20261020/` (ảnh tuần 2) và `non-rt-20261022/` (mốc benchmark: có fragment `hid-multitouch`, dtb `-@`, overlay, ảnh `rootfs-20261022155529`; thêm `mpu6050.dtbo`). Mỗi thư mục có wic, `zImage`, dtb, modules, manifest, kernel `.config`, `SHA256SUMS`
+- Phải giữ, nằm ngoài repo: `~/emmc-backup/` (đường duy nhất khôi phục bootloader eMMC, xem `docs/emmc-bootloader-disable.md`), khóa riêng `~/.ssh/id_ed25519_bbb` (mất thì chỉ còn serial), mốc non-RT `~/projectb-baseline/`: `non-rt-20261020/` (ảnh tuần 2) và `non-rt-20261022/` (mốc benchmark: có fragment `hid-multitouch`, dtb `-@`, overlay, ảnh `rootfs-20261022155529`; thêm `mpu6050.dtbo`), mốc RT không debug `rt-20261022/` (ảnh `rootfs-20261022161133`, mốc benchmark RT) và `rt-nodebug-ko/` (`hid-multitouch.ko` cho thử âm vermagic). Mỗi thư mục có wic, `zImage`, dtb, modules, manifest, kernel `.config`, `SHA256SUMS`
 
 ## Đã dọn (quyết định 2026-10-20)
 Xóa vì thuộc cấu hình đã bị thay thế, không tuần nào sau cần (đối chiếu ROADMAP tuần 3 đến GĐ2):

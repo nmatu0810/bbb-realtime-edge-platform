@@ -1,0 +1,201 @@
+Loading cache...done.
+Loaded 1889 entries from dependency cache.
+NOTE: Resolving any missing task queue dependencies
+
+Build Configuration:
+BB_VERSION           = "2.12.1"
+BUILD_SYS            = "x86_64-linux"
+NATIVELSBSTRING      = "universal"
+TARGET_SYS           = "arm-poky-linux-gnueabi"
+MACHINE              = "beaglebone-yocto"
+DISTRO               = "poky"
+DISTRO_VERSION       = "5.2.4"
+TUNE_FEATURES        = "arm vfp cortexa8 neon callconvention-hard"
+TARGET_FPU           = "hard"
+meta                 
+meta-poky            
+meta-yocto-bsp       = "HEAD:d0b46a6624ec9c61c47270745dd0b2d5abbe6ac1"
+meta-projectb        = "main:1eb92db5197de7fb07afb30b81dcc6ac250a3709"
+
+Initialising tasks...Sstate summary: Wanted 27 Local 0 Mirrors 0 Missed 27 Current 2642 (0% match, 98% complete)
+Removing 15 stale sstate objects for arch beaglebone_yocto...done.
+NOTE: Executing Tasks
+NOTE: Running task 1547 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_recipe_qa)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_recipe_qa: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_recipe_qa: Succeeded
+NOTE: Running task 1992 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_fetch)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_fetch: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_fetch: Succeeded
+NOTE: Running task 5537 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_unpack)
+NOTE: Running task 5538 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_prepare_recipe_sysroot)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_unpack: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_prepare_recipe_sysroot: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_prepare_recipe_sysroot: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_unpack: Succeeded
+NOTE: Running task 5539 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_symlink_kernsrc)
+NOTE: Running task 5540 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_collect_spdx_deps)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_symlink_kernsrc: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_symlink_kernsrc: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_collect_spdx_deps: Started
+NOTE: Running task 5541 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_kernel_checkout)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_collect_spdx_deps: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_checkout: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_checkout: Succeeded
+NOTE: Running task 5542 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_validate_branches)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_validate_branches: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_validate_branches: Succeeded
+NOTE: Running task 5543 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_kernel_metadata)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_metadata: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_metadata: Succeeded
+NOTE: Running task 5544 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_patch)
+NOTE: Running task 5545 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_kernel_version_sanity_check)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_version_sanity_check: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_patch: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_version_sanity_check: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_patch: Succeeded
+NOTE: Running task 5546 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_deploy_source_date_epoch)
+NOTE: Running task 5547 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_kernel_configme)
+NOTE: Running task 5548 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_populate_lic)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_deploy_source_date_epoch: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_configme: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_populate_lic: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_deploy_source_date_epoch: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_populate_lic: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_configme: Succeeded
+NOTE: Running task 5549 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_configure)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_configure: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_configure: Succeeded
+NOTE: Running task 5550 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_kernel_configcheck)
+NOTE: Running task 5551 of 5603 (/workspace/meta-projectb/recipes-bsp/projectb-overlays/projectb-overlays.bb:do_compile)
+NOTE: recipe projectb-overlays-1.0-r0: task do_compile: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_configcheck: Started
+NOTE: recipe projectb-overlays-1.0-r0: task do_compile: Succeeded
+NOTE: Running task 5552 of 5603 (/workspace/meta-projectb/recipes-bsp/projectb-overlays/projectb-overlays.bb:do_install)
+NOTE: recipe projectb-overlays-1.0-r0: task do_install: Started
+NOTE: recipe projectb-overlays-1.0-r0: task do_install: Succeeded
+NOTE: Running task 5553 of 5603 (/workspace/meta-projectb/recipes-bsp/projectb-overlays/projectb-overlays.bb:do_deploy)
+NOTE: Running task 5554 of 5603 (/workspace/meta-projectb/recipes-bsp/projectb-overlays/projectb-overlays.bb:do_package)
+NOTE: recipe projectb-overlays-1.0-r0: task do_deploy: Started
+NOTE: recipe projectb-overlays-1.0-r0: task do_package: Started
+NOTE: recipe projectb-overlays-1.0-r0: task do_deploy: Succeeded
+NOTE: Running task 5555 of 5603 (/workspace/meta-projectb/recipes-bsp/projectb-overlays/projectb-overlays.bb:do_populate_sysroot)
+NOTE: recipe projectb-overlays-1.0-r0: task do_populate_sysroot: Started
+NOTE: recipe projectb-overlays-1.0-r0: task do_populate_sysroot: Succeeded
+NOTE: recipe projectb-overlays-1.0-r0: task do_package: Succeeded
+NOTE: Running setscene task 2667 of 2669 (/workspace/meta-projectb/recipes-bsp/projectb-overlays/projectb-overlays.bb:do_create_package_spdx_setscene)
+NOTE: recipe projectb-overlays-1.0-r0: task do_create_package_spdx_setscene: Started
+NOTE: recipe projectb-overlays-1.0-r0: task do_create_package_spdx_setscene: Succeeded
+NOTE: Running setscene task 2668 of 2669 (/workspace/meta-projectb/recipes-bsp/projectb-overlays/projectb-overlays.bb:do_create_spdx_setscene)
+NOTE: recipe projectb-overlays-1.0-r0: task do_create_spdx_setscene: Started
+NOTE: recipe projectb-overlays-1.0-r0: task do_create_spdx_setscene: Succeeded
+NOTE: Running setscene task 2669 of 2669 (/workspace/meta-projectb/recipes-bsp/projectb-overlays/projectb-overlays.bb:do_packagedata_setscene)
+NOTE: recipe projectb-overlays-1.0-r0: task do_packagedata_setscene: Started
+NOTE: recipe projectb-overlays-1.0-r0: task do_packagedata_setscene: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_configcheck: Succeeded
+NOTE: Running task 5559 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_compile)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_compile: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_compile: Succeeded
+NOTE: Running task 5560 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_shared_workdir)
+NOTE: Running task 5561 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_kernel_link_images)
+NOTE: Running task 5562 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_transform_kernel)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_shared_workdir: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_link_images: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_transform_kernel: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_kernel_link_images: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_shared_workdir: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_transform_kernel: Succeeded
+NOTE: Running task 5563 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_compile_kernelmodules)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_compile_kernelmodules: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_compile_kernelmodules: Succeeded
+NOTE: Running task 5564 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_strip)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_strip: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_strip: Succeeded
+NOTE: Running task 5565 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_sizecheck)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_sizecheck: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_sizecheck: Succeeded
+NOTE: Running task 5566 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_install)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_install: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_install: Succeeded
+NOTE: Running task 5567 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_package)
+NOTE: Running task 5568 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_populate_sysroot)
+NOTE: Running task 5569 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_bundle_initramfs)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_bundle_initramfs: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_populate_sysroot: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_package: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_bundle_initramfs: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_populate_sysroot: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_package: Succeeded
+NOTE: Running task 5570 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_packagedata)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_packagedata: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_packagedata: Succeeded
+NOTE: Running task 5571 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_create_spdx)
+NOTE: Running task 5572 of 5603 (/workspace/poky/meta/recipes-core/packagegroups/packagegroup-core-boot.bb:do_package_write_rpm)
+NOTE: Running task 5573 of 5603 (/workspace/poky/meta/recipes-core/packagegroups/packagegroup-core-boot.bb:do_package_qa)
+NOTE: recipe packagegroup-core-boot-1.0-r0: task do_package_write_rpm: Started
+NOTE: recipe packagegroup-core-boot-1.0-r0: task do_package_qa: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_create_spdx: Started
+NOTE: recipe packagegroup-core-boot-1.0-r0: task do_package_qa: Succeeded
+NOTE: Running task 5574 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_package_write_rpm)
+NOTE: recipe packagegroup-core-boot-1.0-r0: task do_package_write_rpm: Succeeded
+NOTE: Running task 5575 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_package_qa)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_package_write_rpm: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_package_qa: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_create_spdx: Succeeded
+NOTE: Running task 5582 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_create_package_spdx)
+NOTE: recipe projectb-image-1.0-r0: task do_create_package_spdx: Started
+NOTE: recipe projectb-image-1.0-r0: task do_create_package_spdx: Succeeded
+NOTE: Running task 5586 of 5603 (/workspace/poky/meta/recipes-core/packagegroups/packagegroup-core-boot.bb:do_create_package_spdx)
+NOTE: recipe packagegroup-core-boot-1.0-r0: task do_create_package_spdx: Started
+NOTE: recipe packagegroup-core-boot-1.0-r0: task do_create_package_spdx: Succeeded
+NOTE: Running task 5587 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_create_package_spdx)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_create_package_spdx: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_create_package_spdx: Succeeded
+NOTE: Running task 5588 of 5603 (/workspace/poky/meta/recipes-kernel/linux/linux-yocto-rt_6.12.bb:do_deploy)
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_deploy: Started
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_package_write_rpm: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_deploy: Succeeded
+NOTE: recipe linux-yocto-rt-6.12.47+git-r0: task do_package_qa: Succeeded
+NOTE: Running task 5589 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_rootfs)
+NOTE: recipe projectb-image-1.0-r0: task do_rootfs: Started
+NOTE: recipe projectb-image-1.0-r0: task do_rootfs: Succeeded
+NOTE: Running task 5590 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_flush_pseudodb)
+NOTE: Running task 5591 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_create_rootfs_spdx)
+NOTE: Running task 5592 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_write_qemuboot_conf)
+NOTE: recipe projectb-image-1.0-r0: task do_flush_pseudodb: Started
+NOTE: recipe projectb-image-1.0-r0: task do_flush_pseudodb: Succeeded
+NOTE: Running task 5593 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_image_qa)
+NOTE: recipe projectb-image-1.0-r0: task do_create_rootfs_spdx: Started
+NOTE: recipe projectb-image-1.0-r0: task do_write_qemuboot_conf: Started
+NOTE: recipe projectb-image-1.0-r0: task do_write_qemuboot_conf: Succeeded
+NOTE: recipe projectb-image-1.0-r0: task do_image_qa: Started
+NOTE: recipe projectb-image-1.0-r0: task do_image_qa: Succeeded
+NOTE: recipe projectb-image-1.0-r0: task do_create_rootfs_spdx: Succeeded
+NOTE: Running task 5594 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_image)
+NOTE: recipe projectb-image-1.0-r0: task do_image: Started
+NOTE: recipe projectb-image-1.0-r0: task do_image: Succeeded
+NOTE: Running task 5595 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_rootfs_wicenv)
+NOTE: Running task 5596 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_image_jffs2)
+NOTE: Running task 5597 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_image_tar)
+NOTE: recipe projectb-image-1.0-r0: task do_rootfs_wicenv: Started
+NOTE: recipe projectb-image-1.0-r0: task do_rootfs_wicenv: Succeeded
+NOTE: Running task 5598 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_image_wic)
+NOTE: recipe projectb-image-1.0-r0: task do_image_jffs2: Started
+NOTE: recipe projectb-image-1.0-r0: task do_image_tar: Started
+NOTE: recipe projectb-image-1.0-r0: task do_image_wic: Started
+NOTE: recipe projectb-image-1.0-r0: task do_image_tar: Succeeded
+NOTE: recipe projectb-image-1.0-r0: task do_image_wic: Succeeded
+NOTE: recipe projectb-image-1.0-r0: task do_image_jffs2: Succeeded
+NOTE: Running task 5599 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_image_complete)
+NOTE: recipe projectb-image-1.0-r0: task do_image_complete: Started
+NOTE: recipe projectb-image-1.0-r0: task do_image_complete: Succeeded
+NOTE: Running task 5600 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_create_image_spdx)
+NOTE: Running task 5601 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_populate_lic_deploy)
+NOTE: recipe projectb-image-1.0-r0: task do_create_image_spdx: Started
+NOTE: recipe projectb-image-1.0-r0: task do_populate_lic_deploy: Started
+NOTE: recipe projectb-image-1.0-r0: task do_populate_lic_deploy: Succeeded
+NOTE: recipe projectb-image-1.0-r0: task do_create_image_spdx: Succeeded
+NOTE: Running task 5602 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_create_image_sbom_spdx)
+NOTE: recipe projectb-image-1.0-r0: task do_create_image_sbom_spdx: Started
+NOTE: recipe projectb-image-1.0-r0: task do_create_image_sbom_spdx: Succeeded
+NOTE: Running noexec task 5603 of 5603 (/workspace/meta-projectb/recipes-core/images/projectb-image.bb:do_build)
+NOTE: Tasks Summary: Attempted 5603 tasks of which 5546 didn't need to be rerun and all succeeded.
