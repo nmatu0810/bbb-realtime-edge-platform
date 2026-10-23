@@ -5,6 +5,46 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 5 — bàn giao, chưa bắt đầu (ghi 2026-10-23)
+
+Đọc mục này trước khi bắt đầu tuần 5 ở session mới. Tuần 1–4 xong; chi tiết tuần 4 ở mục ngay dưới. Ghi chú kiến thức tuần 4: `~/workspace/VKU/DoAn/week4-knowledge-summary.md`.
+
+**Hệ thống đang chạy (sau tuần 4)**
+- Bo chạy ảnh `rootfs-20261023085915.wic` (`20fbfbbc…`): kernel `6.12.47-rt6-yocto-preempt-rt-debug` (lockdep + `DEBUG_ATOMIC_SLEEP`, `zImage` `a9872bda…`), dtb `cd9c1103…`, overlay `1a1a0a24…`. Template đặt `PREFERRED_PROVIDER_virtual/kernel = "linux-yocto-rt"` và `PROJECTB_KERNEL_DEBUG = "1"`
+- Driver `driver/mpu6050/mpu6050.c`, recipe `meta-projectb/recipes-kernel/mpu6050/mpu6050-mod_0.1.bb`. Chưa vào ảnh (`IMAGE_INSTALL` chưa có `kernel-module-mpu6050`): reboot là mất `/tmp/mpu6050.ko`, phải chép lại
+- Driver hiện có: bảng `mpu6050_chips[]` theo `WHO_AM_I`; `mpu6050_reset()`; `mpu6050_write_check()` (ghi + đọc lại); `mpu6050_configure()` (100 Hz, ±2 g, DLPF 41 Hz, ngắt/FIFO tắt); `mpu6050_dump_sample()` (burst 14 byte, in dmesg, tạm); remove ghi `PWR_MGMT_1` = 0x41. Chưa có struct trạng thái per-device (`i2c_set_clientdata`), chưa khóa
+- Mốc ngoài repo: `~/projectb-baseline/rt-20261022/` (RT không debug, mốc benchmark RT), `rt-nodebug-ko/`, `non-rt-20261022/`, `non-rt-20261020/`
+
+**Vòng sửa–thử (đã quen, đừng đổi khi không có lý do)**
+- Container: `docker run --rm -it -v ~/workspace_projectb:/workspace yocto-build`, `cd /workspace/poky && source oe-init-build-env build-clean`, `bitbake mpu6050-mod 2>&1 | grep -E 'WARNING|ERROR|Tasks Summary'`
+- Laptop, trong `~/workspace_projectb`: `KO=$(echo poky/build-clean/tmp/work/beaglebone_yocto-poky-linux-gnueabi/mpu6050-mod/0.1/packages-split/kernel-module-mpu6050-*/usr/lib/modules/*/updates/mpu6050.ko)`, `sha256sum $KO`, `ssh -i ~/.ssh/id_ed25519_bbb -o IdentitiesOnly=yes root@192.168.50.182 'cat > /tmp/mpu6050.ko' < $KO`
+- Bo: so hash, `insmod`, `dmesg`, `rmmod`; sau mỗi đợt `grep debug_locks /proc/lockdep_stats` (phải là 1)
+- Đổi recipe ứng dụng thì cũng build bằng bitbake rồi chép như trên; ảnh không có gcc
+
+**Tuần 5 theo kế hoạch (ROADMAP)**: header uapi (`struct { __s16 ax, ay, az, temp; __u64 ts_ns; }` 16 byte trên cả ARM32/x86_64, `static_assert`, mã ioctl), `miscdevice` `/dev/mpu6050`, kfifo + wait queue, `read` chỉ trả trọn bản ghi (`EINVAL` nếu buffer nhỏ hơn một bản ghi), `O_NONBLOCK` (`EAGAIN`), một người mở (`EBUSY`), `poll`; sysfs `sample_rate`, `accel_range`, `dropped` (tên chốt, không đổi ở GĐ2); nguồn dữ liệu tạm thay `mpu6050_dump_sample`; app test dùng `poll()` có recipe. Mốc cuối tuần: lắc → số đổi; đổi `sample_rate` → tốc độ đổi; `strace` thấy `poll`/`read`; `EINVAL`, `EAGAIN`; `rmmod` khi fd đang mở bị chặn; lockdep im.
+
+**Điểm cần quyết ở đầu tuần 5 (phân tích rồi khuyến nghị, đừng hỏi Tus chọn)**
+- Nguồn dữ liệu tạm: `delayed_work` chạy theo jiffy (`HZ=100`, 10 ms), không theo được tốc độ > 100 Hz và có jitter (đã đo `msleep`). Phương án khác: `hrtimer` đánh thức work (callback hrtimer không được ngủ, I2C thì ngủ). Tuần 6 thay bằng ngắt DATA_RDY, nên chỉ cần đủ cho demo và test API
+- Header uapi đi qua sysroot thế nào: `do_install:append` trong recipe module (module.bbclass đã cài `Module.symvers` vào `${includedir}/${BPN}`) để app `DEPENDS` vào recipe module (recipe phụ thuộc máy), hay recipe header riêng cho cả app và `sensord` GĐ2
+- Khóa: mutex cho cấu hình và `read`; kfifo một người ghi một người đọc không cần khóa khi chỉ có một người mở. Trên RT spinlock thường thành lock ngủ được; lockdep đang bật để bắt lỗi
+- Đổi `sample_rate` phải đổi DLPF theo (băng thông dưới Nyquist). `accel_range` đổi độ nhạy (16384/8192/4096/2048 LSB/g)
+- Header uapi đặt trong `driver/mpu6050/include/uapi/`, dùng `__s16`/`__u64` của `<linux/types.h>`
+
+**Dữ kiện chỉ người làm có, vẫn chưa trả lời**
+- Chữ in trên con chip
+- Kinh nghiệm viết module kernel trước đây, phần đã làm trong driver model của Nothan-OS
+- Ngày nộp và ngày bảo vệ đồ án chuyên ngành
+- (Câu tự trả lời) ai gửi NACK ở byte cuối của lần đọc, và vì sao
+
+**Bẫy, thêm vào danh sách các mục bàn giao trước**
+- `bitbake -e` với `PREFERRED_PROVIDER` khác (kể cả bằng `-R`) gỡ deploy và work của kernel kia (`ReachableStamps`); lưu mốc trước khi đổi kernel, `sstate-cache` còn để lấy lại
+- Bật/tắt `PROJECTB_KERNEL_DEBUG` thì build lại module; đo thời gian (tuần 7) trên kernel không debug
+- busybox `dmesg -c`, không có `-C`; khối lệnh dán có thể mất dấu xuống dòng; đường dẫn tương đối chỉ đúng khi đứng trong repo
+- Chụp logic analyzer: cửa sổ tính từ trigger, chạy một lệnh chứ không lặp; lưu `.sr` toàn bộ rồi mới đổi tên/ghi đè ảnh
+- Ghi chú commit: không tiền tố tuần ("week N ..." ở đầu dòng cũng tính)
+
+---
+
 ## Tuần 4 — driver MPU6050 (2026-10-23) — XONG 2026-10-23
 
 Kế hoạch tuần 4–8 và ràng buộc: `docs/ROADMAP.md`, mục "Kế hoạch driver tuần 4–8".

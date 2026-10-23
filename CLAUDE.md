@@ -5,12 +5,12 @@ Spec gốc: `/home/tus/workspace/Project/project-B-embedded-linux.md`.
 Tiến độ: đọc `docs/PROGRESS.md` trước khi làm bất cứ việc gì.
 
 ## Bắt đầu một session
-Tuần 1, 2 xong (2026-10-20), tuần 3 xong (2026-10-22, kernel RT đang là mặc định). Tuần 4 xong (2026-10-23): kernel debug (lockdep, hậu tố `-debug`) đang chạy trên bo, driver `driver/mpu6050/` probe reset + cấu hình + burst, chưa vào ảnh. Tuần 5 (char device, uapi, sysfs) chưa bắt đầu; kế hoạch tuần 4–8 ở `docs/ROADMAP.md`, kết quả và việc tiếp theo ở mục tuần 4 của `docs/PROGRESS.md`.
-1. `docs/PROGRESS.md`: mục trên cùng là bàn giao tuần 4 (hệ thống đang chạy, điểm xuất phát cho driver, dữ kiện phải hỏi, lệch spec đã quyết, bẫy). Tiếp theo là kết quả tuần 3, rồi "bàn giao tuần 3" (quy trình build/flash/serial và bẫy cũ, vẫn đúng), rồi tuần 1, 2
-2. `docs/ROADMAP.md`: kế hoạch đã điều chỉnh, hợp đồng driver, phân chia GĐ1/GĐ2
+Tuần 1, 2 xong (2026-10-20), tuần 3 xong (2026-10-22, kernel RT đang là mặc định). Tuần 4 xong (2026-10-23): kernel debug (lockdep, hậu tố `-debug`) đang chạy trên bo, driver `driver/mpu6050/` probe reset + cấu hình + burst, chưa vào ảnh. Tuần 5 (char device, uapi, sysfs) chưa bắt đầu.
+1. `docs/PROGRESS.md`: mục trên cùng là bàn giao tuần 5 (hệ thống đang chạy, vòng sửa–thử, việc tuần 5, điểm cần quyết, dữ kiện phải hỏi, bẫy). Tiếp theo là kết quả tuần 4, "bàn giao tuần 4" (điểm xuất phát driver, lệch spec đã quyết), kết quả tuần 3, "bàn giao tuần 3" (quy trình build/flash/serial và bẫy cũ, vẫn đúng), rồi tuần 1, 2
+2. `docs/ROADMAP.md`: kế hoạch đã điều chỉnh, hợp đồng driver, kế hoạch driver tuần 4–8 (mốc kiểm, chỗ cắt, ràng buộc), phân chia GĐ1/GĐ2
 3. `docs/boot-flow.md` (chuỗi boot thật, PHY, systemd), `docs/emmc-bootloader-disable.md` (khôi phục eMMC)
 4. Spec gốc, phần tuần đang làm
-5. Ghi chú kiến thức tuần 1, 2, 3 ở `~/workspace/VKU/DoAn/` (để biết người dùng đã học gì)
+5. Ghi chú kiến thức tuần 1–4 ở `~/workspace/VKU/DoAn/` (để biết người dùng đã học gì)
 Memory của Claude về project này nằm ở thư mục `~` (`.claude/projects/-home-tus/`), không được nạp khi mở session trong repo; mọi thứ cần biết phải nằm trong file này và `docs/`.
 
 ## Phiên bản đã chốt
@@ -24,7 +24,7 @@ Memory của Claude về project này nằm ở thư mục `~` (`.claude/project
 - Poky: `poky/`. Build duy nhất đang dùng: `poky/build-clean/` (systemd, sinh conf bằng `scripts/setup-build.sh build-clean`; không commit). Giữ `tmp/` và `sstate-cache/` của nó: build lại từ đầu mất nhiều giờ
 - Cache mã nguồn: `downloads/` (không commit, `DL_DIR=/workspace/downloads`)
 - Layer của dự án: `meta-projectb/`
-- Ghi chú kiến thức: `~/workspace/VKU/DoAn/week1-knowledge-summary.md`, `week2-…`, `week3-…` (nằm ngoài repo, có chủ đích)
+- Ghi chú kiến thức: `~/workspace/VKU/DoAn/week1-knowledge-summary.md`, `week2-…`, `week3-…`, `week4-…` (nằm ngoài repo, có chủ đích)
 - Phải giữ, nằm ngoài repo: `~/emmc-backup/` (đường duy nhất khôi phục bootloader eMMC, xem `docs/emmc-bootloader-disable.md`), khóa riêng `~/.ssh/id_ed25519_bbb` (mất thì chỉ còn serial), mốc non-RT `~/projectb-baseline/`: `non-rt-20261020/` (ảnh tuần 2) và `non-rt-20261022/` (mốc benchmark: có fragment `hid-multitouch`, dtb `-@`, overlay, ảnh `rootfs-20261022155529`; thêm `mpu6050.dtbo`), mốc RT không debug `rt-20261022/` (ảnh `rootfs-20261022161133`, mốc benchmark RT) và `rt-nodebug-ko/` (`hid-multitouch.ko` cho thử âm vermagic). Mỗi thư mục có wic, `zImage`, dtb, modules, manifest, kernel `.config`, `SHA256SUMS`
 
 ## Đã dọn (quyết định 2026-10-20)
@@ -53,7 +53,7 @@ Xóa vì thuộc cấu hình đã bị thay thế, không tuần nào sau cần 
 - Chip thật trên module là họ MPU-6500, không phải MPU-6050 (kiểm 2026-10-22: `WHO_AM_I` = 0x70, `PWR_MGMT_1` reset = 0x01; địa chỉ I2C vẫn 0x68). Driver phải đọc `WHO_AM_I` lúc probe; khác 6050 ở công thức nhiệt độ, kích thước FIFO, `ACCEL_CONFIG2`. Tên `mpu6050` trong project giữ nguyên. Datasheet ở `~/workspace/VKU/DoAn/Datasheet/`: `MPU-6500-Register-Map-rev2.1.pdf` (RM-MPU-6500A-00, 2013), `MPU-6500-Product-Spec-rev1.1.pdf` (PS-MPU-6500A-01 rev 1.1, 2014; bản mới nhất rev 1.3 trên trang TDK không tải được)
 - MPU6050 **không có ngắt FIFO watermark**. INT_ENABLE có DATA_RDY, FIFO_OFLOW, I2C_MST và các ngắt chuyển động (Motion, Zero-motion, Free-fall). Đã chốt: ngắt DATA_RDY + đọc FIFO theo lô trong threaded IRQ.
 - Đã chốt hợp đồng driver ↔ userspace: `/dev/mpu6050` trả bản ghi nhị phân qua `read()`, `poll()` + `ioctl()`, struct trong header uapi dùng chung; sysfs chỉ cấu hình. Chương trình test GĐ1 dùng `poll()`, không đọc sysfs.
-- GĐ1 thêm: cmdline/extlinux trong layer (tuần 2, xong), overlay MPU6050 + pinmux trong layer (tuần 3, xong; pinctrl chân INT chỉ áp khi driver probe, kiểm lại `devmem 0x44E10878` = `0x27` ở tuần 4). Phần còn lại (machine conf, watchdog, udev, `sensord`, shm, mq, benchmark runner) là GĐ2.
+- GĐ1 thêm: cmdline/extlinux trong layer (tuần 2, xong), overlay MPU6050 + pinmux trong layer (tuần 3, xong; pinctrl chân INT chỉ áp khi driver probe, đã thấy `devmem 0x44E10878` thành `0x27` khi driver bind, tuần 4). Phần còn lại (machine conf, watchdog, udev, `sensord`, shm, mq, benchmark runner) là GĐ2.
 - Thiếu SPI (ADXL345 là optional) và networking (MQTT/HTTP) so với lộ trình tài liệu "Embedded Systems journey". Chỉ làm khi GĐ1 xong sớm.
 
 ## Cách làm việc với người dùng (Tus)
