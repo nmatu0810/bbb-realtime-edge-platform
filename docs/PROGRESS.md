@@ -5,9 +5,13 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
-## Tuần 4 — driver MPU6050 (bắt đầu 2026-10-23)
+## Tuần 4 — driver MPU6050 (2026-10-23) — XONG 2026-10-23
 
 Kế hoạch tuần 4–8 và ràng buộc: `docs/ROADMAP.md`, mục "Kế hoạch driver tuần 4–8".
+
+Mốc kiểm tuần 4 đạt hết: `UU`; `0x44E10878` = `0x27`; chip id trong dmesg; |a| ≈ 1 g; 20 vòng `insmod`/`rmmod` + 5 unbind/bind, cấu hình đọc lại đúng, lockdep im; logic analyzer một giao dịch burst 14 byte. Kiểm chéo đầu-cuối: byte giải mã từ dây (`i2c-probe-2026-10-23.sr`) và dòng dmesg của cùng lần probe trùng từng số (`accel -16270 1947 -2380 (|a| 1010 mg), temp 33933 mC, gyro 25 76 94`; |a| 1010 vì `int_sqrt` và phép chia nguyên đều làm tròn xuống, tính tay 1010.6).
+
+**Tuần 5 tiếp theo** (ROADMAP): header uapi (struct 16 byte, `static_assert`, mã ioctl), `miscdevice` `/dev/mpu6050`, kfifo + wait queue, `read` trọn bản ghi, `O_NONBLOCK`, một người mở; sysfs `sample_rate`, `accel_range`, `dropped`; nguồn dữ liệu tạm `delayed_work` (thay `mpu6050_dump_sample`); app test `poll()` có recipe, header qua sysroot. Đổi `sample_rate` thì đổi cả DLPF theo (giữ băng thông dưới Nyquist). Không dùng `msleep` cho nhịp lấy mẫu.
 
 **Kernel debug cho phát triển driver (2026-10-23)**
 - `files/debug-locking.cfg` (`PROVE_LOCKING`, `DEBUG_ATOMIC_SLEEP`), bật bằng `PROJECTB_KERNEL_DEBUG = "1"` trong template; `projectb-kernel.inc` thêm `-debug` vào `LINUX_VERSION_EXTENSION` bằng `:append` (giữ `??=` của `linux-yocto.inc`). Kiểm `bitbake -e` trước build: RT bật `-yocto-preempt-rt-debug`, tắt `-yocto-preempt-rt` (không thừa ký tự), non-RT `-yocto-standard-debug`

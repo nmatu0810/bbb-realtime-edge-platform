@@ -5,7 +5,7 @@ Spec gốc: `/home/tus/workspace/Project/project-B-embedded-linux.md`.
 Tiến độ: đọc `docs/PROGRESS.md` trước khi làm bất cứ việc gì.
 
 ## Bắt đầu một session
-Tuần 1, 2 xong (2026-10-20), tuần 3 xong (2026-10-22, kernel RT đang là mặc định). Tuần 4 (driver) đang làm từ 2026-10-23: kernel debug (lockdep, hậu tố `-debug`) đang chạy trên bo; kế hoạch tuần 4–8 ở `docs/ROADMAP.md`.
+Tuần 1, 2 xong (2026-10-20), tuần 3 xong (2026-10-22, kernel RT đang là mặc định). Tuần 4 xong (2026-10-23): kernel debug (lockdep, hậu tố `-debug`) đang chạy trên bo, driver `driver/mpu6050/` probe reset + cấu hình + burst, chưa vào ảnh. Tuần 5 (char device, uapi, sysfs) chưa bắt đầu; kế hoạch tuần 4–8 ở `docs/ROADMAP.md`, kết quả và việc tiếp theo ở mục tuần 4 của `docs/PROGRESS.md`.
 1. `docs/PROGRESS.md`: mục trên cùng là bàn giao tuần 4 (hệ thống đang chạy, điểm xuất phát cho driver, dữ kiện phải hỏi, lệch spec đã quyết, bẫy). Tiếp theo là kết quả tuần 3, rồi "bàn giao tuần 3" (quy trình build/flash/serial và bẫy cũ, vẫn đúng), rồi tuần 1, 2
 2. `docs/ROADMAP.md`: kế hoạch đã điều chỉnh, hợp đồng driver, phân chia GĐ1/GĐ2
 3. `docs/boot-flow.md` (chuỗi boot thật, PHY, systemd), `docs/emmc-bootloader-disable.md` (khôi phục eMMC)
