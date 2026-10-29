@@ -6,7 +6,11 @@
 #   python3 scripts/i2c-decode.py docs/i2c-stream-2026-10-29.sr
 import sys, zipfile
 f = sys.argv[1]
-d = zipfile.ZipFile(f).read('logic-1-1')
+z = zipfile.ZipFile(f)
+# PulseView ghi một khối logic-1-1, sigrok-cli chia khối 20480 mẫu: nối theo số thứ tự.
+names = sorted((n for n in z.namelist() if n.startswith('logic-1-')),
+               key=lambda n: int(n.rsplit('-', 1)[1]))
+d = b''.join(z.read(n) for n in names)
 RATE = 2e6
 scl = [b & 1 for b in d]; sda = [(b >> 1) & 1 for b in d]
 tx = []; cur = None; bits = []; edges = 0

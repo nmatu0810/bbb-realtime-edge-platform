@@ -11,7 +11,7 @@ KO=/tmp/mpu6050.ko
 
 tail_check() {
 	grep debug_locks /proc/lockdep_stats
-	echo "dmesg WARNING/BUG/error: $(dmesg -c | grep -ciE 'warning|bug|error|circular|lockdep')"
+	echo "dmesg WARNING/BUG/error/failed/lost: $(dmesg -c | grep -ciE 'warning|bug|error|circular|lockdep|failed|lost')"
 }
 
 # Tóm tắt output của app: tốc độ min/max, max gap lớn nhất, số giây gap > 20 ms.
@@ -72,12 +72,16 @@ sysfs)
 	;;
 load)
 	s=${2:-600}
+	# Tuần 6: thêm số ngắt irq 50 (mpu6050) trong lúc app mở, so với bản ghi + dropped
+	i0=$(awk '$NF == "mpu6050" { print $2 }' /proc/interrupts)
 	$APP > /tmp/stress-load.txt 2>&1 & p=$!
 	sleep 2
 	stress-ng --cpu 1 --io 1 --vm 1 --vm-bytes 64M --timeout ${s}s --metrics-brief 2>&1 | tail -n 6
 	sleep 2
 	kill -INT $p; wait $p
+	i1=$(awk '$NF == "mpu6050" { print $2 }' /proc/interrupts)
 	summarize /tmp/stress-load.txt
+	echo "irq 50: +$((i1 - i0))"
 	tail_check
 	;;
 mod)
