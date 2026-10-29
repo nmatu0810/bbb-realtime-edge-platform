@@ -90,14 +90,15 @@ Nếu tuần 12–14 trễ: cắt AI xuống bản ngưỡng đơn giản trư�
 
 Spec chỉ cho thứ tự char device → I2C → sysfs → ngắt + FIFO. Đổi một chỗ: I2C lên trước (chưa probe
 thì char device không có gì để trả). Giao diện (uapi, sysfs) chốt sớm; IRQ ở tuần 6 để tuần 7–8 làm
-buffer. Nguồn dữ liệu và `read`/`poll` tách nhau bằng kfifo: tuần 5 nguồn tạm là `delayed_work`,
-tuần 6–7 thay bằng IRQ + FIFO, phía đọc không đổi.
+buffer. Nguồn dữ liệu và `read`/`poll` tách nhau bằng kfifo: tuần 5 nguồn tạm là hrtimer + work
+(`delayed_work` không ra được 10 ms với `HZ=100`, xem PROGRESS tuần 5), tuần 6–7 thay bằng IRQ + FIFO,
+phía đọc không đổi.
 
 | Tuần | Việc | Mốc kiểm cuối tuần |
 |---|---|---|
 | 4 | Recipe module, vòng `bitbake` → `scp` → `insmod` (module chưa vào ảnh: udev sẽ tự nạp lúc boot). Fragment debug `DEBUG_ATOMIC_SLEEP` + `PROVE_LOCKING`, bật/tắt bằng biến trong template. Probe: `DEVICE_RESET`, chờ, ghi tường minh mọi thanh ghi cấu hình (kể cả `DLPF_CFG` 1–6, không thì `SMPLRT_DIV` vô hiệu), `WHO_AM_I` chọn thông số. Đọc burst 14 byte | `UU`; `0x44E10878` = `0x27`; chip id trong dmesg; \|a\| ≈ 1 g; 20 vòng `insmod`/`rmmod` + unbind/bind sạch, giá trị cấu hình đọc lại đúng sau mỗi vòng; logic analyzer: một giao dịch 14 byte |
 | 5 | Header uapi (struct 16 byte, `static_assert`), `miscdevice`, kfifo, wait queue, `read` trọn bản ghi, `O_NONBLOCK`, một người mở. Sysfs `sample_rate`, `accel_range`, `dropped`. App test `poll()` có recipe | Lắc → số đổi; đổi `sample_rate` → tốc độ đổi; `strace`; `EINVAL`, `EAGAIN`; `rmmod` khi fd mở bị chặn |
-| 6 | DATA_RDY, `request_threaded_irq` + `IRQF_ONESHOT`, `ktime_get_ns()` ở primary handler. Bỏ `delayed_work` | `/proc/interrupts` tăng đúng `sample_rate`; thread `SCHED_FIFO` 50; logic analyzer INT + I2C; 30 phút với `stress-ng`; lockdep im |
+| 6 | DATA_RDY, `request_threaded_irq` + `IRQF_ONESHOT`, `ktime_get_ns()` ở primary handler. Bỏ hrtimer + work | `/proc/interrupts` tăng đúng `sample_rate`; thread `SCHED_FIFO` 50; logic analyzer INT + I2C; 30 phút với `stress-ng`; lockdep im |
 | 7 | FIFO (`ACCEL` + `TEMP`, 8 byte/mẫu), lô, `ts_ns` nội suy lùi, tràn → `dropped` + reset FIFO. Thí nghiệm tràn có/không reset. Đo thời gian I2C 100 kHz, quyết 400 kHz. Build non-RT + san bằng `.config` chung đợt | `dropped` = 0 ở tốc độ tối đa đã chọn; tràn cố ý → `dropped` tăng, tự hồi; cả hai kernel qua bộ kiểm |
 | 8 | Đường lỗi (I2C lỗi, unbind khi stream), module vào ảnh, tài liệu kiến trúc, ảnh LA, log, diễn tập demo, tag `v1.0-chuyennganh` | Thẻ ghi mới, driver tự nạp, test chạy không thao tác tay |
 

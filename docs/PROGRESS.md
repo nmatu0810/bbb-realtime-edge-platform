@@ -5,6 +5,122 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 6 — bàn giao, chưa bắt đầu (ghi 2026-10-29)
+
+Đọc mục này trước khi bắt đầu tuần 6 ở session mới. Tuần 1–5 xong; chi tiết tuần 5 ở mục ngay dưới. Ghi chú kiến thức tuần 5: `~/workspace/VKU/DoAn/week5-knowledge-summary.md`.
+
+**Hệ thống đang chạy (sau tuần 5)**
+- Ảnh trên bo không đổi từ tuần 4: `rootfs-20261023085915.wic` (`20fbfbbc…`), kernel `6.12.47-rt6-yocto-preempt-rt-debug` (lockdep), `HZ=100`, `HIGH_RES_TIMERS`
+- Driver, app, header vẫn chưa vào ảnh. Trên bo chỉ có trong `/tmp` (tmpfs, reboot là mất): `/tmp/mpu6050.ko` (`02a18d11…`, 15972 byte), `/tmp/mpu6050-test` (`3ad98c68…`), `/tmp/strace` (`985836a4…`, từ `packages-split/strace` của `build-clean`; ảnh không có strace), `/tmp/mpu-check.sh`, `/tmp/mpu-stress.sh`
+- Commit cuối của phần code: `94ac4c4` (driver), `f7ca9eb` (app), `1b4e2da` (script), `5b711a3` (ảnh LA)
+- Driver hiện có (`driver/mpu6050/mpu6050.c`, 823 dòng): probe như tuần 4 + `struct mpu6050` (devm), misc device `/dev/mpu6050` (10, minor động, 124 trên bo), kfifo 256 bản ghi, `read`/`poll`/`ioctl`, sysfs `sample_rate`, `accel_range`, `dropped`. Nguồn dữ liệu tạm: hrtimer xếp `work_struct`, work đọc burst 8 byte `0x3B..0x42`. Nguồn bật ở `open`, tắt ở `release`
+- `docs/boot-serial-2026-10-23-debug.log` đang bị sửa trong cây làm việc (picocom ghi thêm một lần poweroff). Chưa `git restore`; Tus tự chạy nếu muốn bỏ
+
+**Vòng sửa–thử (giữ nguyên, thêm app và strace)**
+- Container: như tuần 4; `bitbake mpu6050-mod mpu6050-test 2>&1 | grep -E 'WARNING|ERROR|Tasks Summary'`. Sửa header thì `mpu6050-uapi` và app build lại theo
+- Laptop, trong `~/workspace_projectb`:
+  - `W=$PWD/poky/build-clean/tmp/work`
+  - `KO=$W/beaglebone_yocto-poky-linux-gnueabi/mpu6050-mod/0.1/packages-split/kernel-module-mpu6050-6.12.47-rt6-yocto-preempt-rt-debug/usr/lib/modules/6.12.47-rt6-yocto-preempt-rt-debug/updates/mpu6050.ko`
+  - `APP=$W/cortexa8hf-neon-poky-linux-gnueabi/mpu6050-test/0.1/image/usr/bin/mpu6050-test`
+  - `STR=$W/cortexa8hf-neon-poky-linux-gnueabi/strace/6.12/packages-split/strace/usr/bin/strace`
+  - `sha256sum "${KO:?}" "${APP:?}"`
+  - `ssh -i ~/.ssh/id_ed25519_bbb -o IdentitiesOnly=yes root@192.168.50.182 'cat > /tmp/mpu6050.ko && sha256sum /tmp/mpu6050.ko' < $KO`; app thêm `chmod +x`. Script: `… 'cat > /tmp/mpu-stress.sh' < scripts/mpu-stress.sh`
+- Bo: `rmmod mpu6050` trước khi `insmod` bản mới (`File exists` là module cũ còn nạp); sau mỗi đợt `dmesg -c`, `grep debug_locks /proc/lockdep_stats`
+- Bộ kiểm có sẵn: `/tmp/mpu6050-test -t` (13 check, mã thoát = số FAIL), `/tmp/mpu6050-test -n N` (mỗi giây một dòng: tốc độ, cấu hình, g, °C, max gap, dropped, age), `sh /tmp/mpu-check.sh shake|cfg|strace|restart|gap`, `sh /tmp/mpu-stress.sh oc|sysfs|load [s]|mod`. LA: `python3 scripts/i2c-decode.py <file.sr>`
+
+**Tuần 6 theo kế hoạch (ROADMAP)**: ngắt DATA_RDY, `request_threaded_irq` + `IRQF_ONESHOT`, `ktime_get_ns()` ở primary handler, bỏ hrtimer + work. Mốc: `/proc/interrupts` tăng đúng `sample_rate`; thread `SCHED_FIFO` 50; logic analyzer INT + I2C cùng một bản ghi; 30 phút `stress-ng`; lockdep im. Phía đọc (kfifo, `read`, `poll`, ioctl, sysfs) không đổi: chỉ thay producer.
+
+**Số đo tuần 5 để so ở tuần 6 (cùng phép thử, đổi nguồn)**
+- `mpu-stress.sh load 600`, nguồn hrtimer + kworker `SCHED_OTHER`: trung bình 83/s ở 100 Hz, thấp nhất 72/s, khe lớn nhất 31.4 ms, 128/602 giây có khe > 20 ms. `load 120` sau khi sửa đếm: 11876 bản ghi + `dropped` 583 = 12459 ≈ 124.6 s × 100
+- LA nhịp 10 ms: phần lớn 9.92–10.06 ms; 2 cặp bản ghi trùng từng byte trong 0.5 s (burst trễ ~7 ms, burst sau cách 2–3 ms đọc lại mẫu cũ); burst 1.11–1.13 ms, có lần bị kéo tới 2.6 và 4.7 ms
+- Kỳ vọng tuần 6 phải kiểm: không còn bản ghi trùng; dưới stress-ng tốc độ giữ đúng nhịp chip vì thread IRQ là `SCHED_FIFO` 50
+
+**Điểm cần quyết ở đầu tuần 6 (phân tích rồi khuyến nghị, đừng hỏi Tus chọn)**
+- Tốc độ tối đa khi đọc từng mẫu: burst 8 byte ở 100 kHz mất ~1.12 ms, đuôi tới vài ms. 1000 Hz không đạt được (bước 5: ghi 1000 thì app thấy dưới 1000/s). Chọn: giới hạn `sample_rate` theo bus, hay giữ 4..1000 và để `dropped` báo. FIFO chip + 400 kHz là việc tuần 7
+- Xóa cờ ngắt: `INT_PIN_CFG` = 0 hiện tại là xung 50 µs, `INT_STATUS` chỉ xóa khi đọc (thêm một giao dịch ~0.5 ms mỗi mẫu). `INT_ANYRD_2CLEAR` cho burst dữ liệu xóa luôn. Phải xem trên LA chân INT có xung đều khi không đọc `INT_STATUS` hay không, trước khi chốt
+- Đếm mẫu mất khi thread trễ quá một chu kỳ: chip ghi đè thanh ghi, không còn `schedule_work` trả false để đếm. Cách phát hiện (khoảng `ts_ns` > 1.5 chu kỳ, hay chỉ đếm ở tuần 7 bằng FIFO) phải quyết, vì `dropped` đã hứa "mọi mẫu mất"
+- Bật/tắt nguồn: `request_irq` ở probe + `INT_ENABLE` DATA_RDY bật ở `open`/tắt ở `release` (giữ cấu trúc start/stop trong `cfg_lock` như bây giờ), hay `enable_irq`/`disable_irq`. Đổi cấu hình khi đang stream: tắt ngắt, ghi, reset kfifo, bật lại như `mpu6050_reconfig` hiện tại
+- `ts_ns`: lấy ở primary handler. Trên RT primary chạy trong thread `irq/26-4804c000.gpio` nên đã gồm độ trễ đánh thức thread GPIO (ROADMAP). Đo bằng LA: cạnh INT so với `ts_ns`
+- Trigger: overlay đã khai `IRQ_TYPE_EDGE_RISING`, chip active-high push-pull. Kiểm `/proc/interrupts` tăng đúng 100/s
+
+**Giới hạn đã biết, mang sang**
+- Unbind khi còn fd mở: `devm` giải phóng `struct mpu6050` trong khi file còn trỏ vào (rmmod thì bị chặn bởi refcount module). Sửa tuần 8 bằng kref; trước đó đừng unbind khi có fd mở
+- `dropped` gộp mất ở phía đọc (kfifo đầy) và phía nguồn (lỡ nhịp). Tách hay không: quyết ở tuần 7 khi có `FIFO_OFLOW` thật
+- Kernel debug: lần đầu mỗi đường khóa sau `insmod` chậm 3–5 lần (lockdep kiểm chuỗi mới). Đo thời gian thì chạy làm nóng một lượt, bỏ lượt đó; số chính thức đo trên kernel không debug (tuần 7)
+
+**Dữ kiện chỉ người làm có, vẫn chưa trả lời**
+- Chữ in trên con chip
+- Kinh nghiệm viết module kernel trước đây, phần đã làm trong driver model của Nothan-OS
+- Ngày nộp và ngày bảo vệ đồ án chuyên ngành (spec dòng 129: nếu ngắn hơn 8 tuần thì dời ngắt sang GĐ2; tuần 6 chính là tuần ngắt)
+
+**Bẫy mới (thêm vào danh sách các mục bàn giao trước)**
+- Biến shell chỉ sống trong terminal đã gán: `sha256sum $APP` với `$APP` rỗng đọc stdin và đứng im. Dùng `"${APP:?}"`
+- `insmod: File exists` = module cùng tên đang nạp, không liên quan file `.ko`. Ghi đè `.ko` không đổi module đang chạy
+- Kernel không bật `MODULE_SRCVERSION_ALL`: không có `/sys/module/mpu6050/srcversion`, `modinfo -F srcversion` rỗng. Nhận bản bằng hash file trước `insmod`
+- Yocto build tái lập: chỉ sửa chú thích trong header thì app build lại ra đúng hash cũ (`3ad98c68…` hai lần)
+- Script tạm ở scratchpad của Claude có thể biến mất giữa session; script dùng trên bo để trong `scripts/`
+- Bo khởi động lại thì mất `/tmp` (ko, app, strace, script). `dmesg -c` lần đầu sau boot in cả log boot
+- Rút điện khi `/boot` (FAT) đang mount rw: dmesg `FAT-fs (mmcblk0p1): Volume was not properly unmounted`. Tắt bằng `poweroff`, chờ `reboot: Power down` trên serial
+- `strace` thấy `ERESTARTSYS` chỉ khi tín hiệu đến lúc tiến trình đang ngủ trong syscall; ở 100 Hz `cat` hay ở ngoài `read`, hạ 4 Hz thì thấy chắc
+- `kill` mặc định (`SIGTERM`) không có handler: syscall bị ngắt nhưng không bao giờ được gọi lại; muốn thấy restart dùng `SIGSTOP`/`SIGCONT`
+- busybox: `od` không có `-A`/`-t` (dùng `hexdump -e`); `sleep 0.2` và `$RANDOM` chạy được; `pidof` có
+
+---
+
+## Tuần 5 — char device, uapi, sysfs (2026-10-28..29) — XONG 2026-10-29
+
+Mốc kiểm tuần 5 đạt hết: lắc (nghiêng) → số đổi; đổi `sample_rate` → tốc độ đổi; `strace` thấy `poll`/`read`/`ioctl`; `EINVAL`, `EAGAIN`, `EBUSY`, `ESPIPE`, `ENOTTY`; `rmmod` khi fd mở bị chặn; lockdep im (`debug_locks: 1` sau mọi đợt). Thêm: LA một burst 8 byte khớp từng byte với `read()` ở userspace.
+
+**Thiết kế đã chốt (duyệt 2026-10-28, ba chỗ Tus sửa đánh dấu (T))**
+- Header `driver/mpu6050/include/uapi/projectb/mpu6050.h` (`581d3430…`), SPDX `GPL-2.0-only WITH Linux-syscall-note`: `mpu6050_sample` 16 byte (`__s16 ax, ay, az, temp; __u64 ts_ns`, `ts_ns` ở offset 8 trên mọi ABI, `CLOCK_MONOTONIC`), `mpu6050_config` 28 byte (whoami, sample_rate_hz, accel_range_g, accel_lsb_per_g, accel_bw_hz, temp_sens_x100, temp_offset_mc), `mpu6050_stats` 8 byte (T) (`dropped`). Ioctl magic `'x'`: `GET_CONFIG` `_IOR(1)` = `0x801c7801`, `GET_STATS` `_IOR(2)` = `0x80087802` (T), `FLUSH` `_IO(3)` = `0x7803`. Thứ tự cắt nếu phải cắt: bỏ `FLUSH` trước (T). Kiểm kích thước bằng `_Static_assert` (C) / `static_assert` (C++)
+- Header qua sysroot bằng recipe riêng `mpu6050-uapi` (`inherit allarch`, cài `${includedir}/projectb/`), không gắn vào `mpu6050-mod`: recipe module là MACHINE_ARCH, chữ ký theo kernel; app và `sensord` không phải build lại khi đổi RT/non-RT/debug. Kernel include bằng `ccflags-y += -I$(src)/include/uapi`
+- Misc device, `misc.parent = &client->dev` (T) (`/sys/class/misc/mpu6050/device` → `2-0068`), thuộc tính sysfs qua `misc.groups` (tạo trước uevent). `misc_open` đặt `private_data` = `&misc` và `fops_get` giữ refcount module (rmmod bị chặn). `stream_open` → `lseek` `ESPIPE`
+- Một người mở: `test_and_set_bit_lock` → `EBUSY`; nhả bằng `clear_bit_unlock` sau khi nguồn đã tắt
+- kfifo 256 × 16 byte (2.56 s ở 100 Hz). Một producer không khóa; phía đọc khóa `read_lock` (hai luồng cùng fd vẫn đọc song song được). Thứ tự khóa `cfg_lock` → `read_lock`. `wait_event_interruptible` không giữ `read_lock`. `kfifo_reset` chỉ khi producer đã dừng (open, reconfig); `FLUSH` dùng `kfifo_reset_out` dưới `read_lock`, producer cứ chạy. Kfifo đầy: bỏ mẫu mới, `dropped`++ (`atomic64`)
+- `read`: < 16 byte `EINVAL`; trả bội số 16, phần lẻ bỏ; `count` cắt về 16 × 256 vì `kfifo_to_user` nhận `unsigned int`; rỗng: `EAGAIN` hoặc ngủ, signal → `-ERESTARTSYS`. `poll`: `EPOLLIN | EPOLLRDNORM`
+- Sysfs: `sample_rate` 4..1000 Hz (`SMPLRT_DIV = 1000/hz - 1`, đọc lại tốc độ thật làm tròn xuống: ghi 300 đọc 333), `accel_range` 2/4/8/16, `dropped` RO. Store khi không ai mở chỉ ghi thanh ghi; khi đang stream: dừng nguồn, ghi, `kfifo_reset` dưới `read_lock`, chạy lại (mọi bản ghi sau khi store trả về đều theo cấu hình mới). Lỗi I2C giữa chừng thì ghi lại cấu hình cũ
+- DLPF chọn bằng hàm (T): duyệt {184, 92, 41, 20, 10, 5} Hz, lấy mục đầu có 2 × bw ≤ tốc độ thật, không có thì 5 Hz. `CONFIG` và `ACCEL_CONFIG2` cùng giá trị
+
+**Bước 0–1: header, recipe, misc device (2026-10-28)**
+- Header biên dịch trên host: 16/28/8 byte; struct sai (`__u64` không ở offset 8) ra 16 trên x86_64, 12 trên i386, assert bắt được. `mpu6050-uapi` ở `all-poky-linux`, header có trong `-dev` và sysroot của app
+- Bo: `crw------- 10, 124`; `cat` ngủ ở trạng thái `S`, wchan `mpu6050_read`; mở lần hai `EBUSY`; `rmmod` "in use" (refcount 1); `dd bs=8` `EINVAL`; `readlink /sys/class/misc/mpu6050/device` → `…/i2c-2/2-0068`
+
+**Bước 2: nguồn dữ liệu tạm — `delayed_work` bỏ, thay hrtimer + work**
+- `delayed_work` bản 1 (hẹn theo hạn ns): cặp bản ghi giống hệt cách nhau 3.4 ms. Bản 2 (hẹn 1 jiffy): 20 ms, 50 Hz
+- Nguyên nhân: `calc_index` (`kernel/time/timer.c:579`) cộng một tick để timer không bao giờ chạy sớm; hẹn N jiffy chạy sau N..N+1 tick. `HZ=100` thì không có cách ra đúng 10 ms
+- hrtimer (`hrtimer_forward_now`, mốc tuyệt đối) xếp work, work đọc I2C (callback hrtimer không được ngủ). Trên RT callback chạy trong `ktimers`. Kết quả: 100 Hz, khoảng 8.4–11.7 ms, bản ghi trùng hiếm; `dd` 100 bản ghi 1.047 s. Giữ fd 5 s không đọc: `dropped` 249 (kfifo 256 đầy), giữ nguyên sau khi đóng
+
+**Bước 3: sysfs**
+- Tám tốc độ biên 333, 166, 83, 76, 40, 38, 20, 19 Hz: `SMPLRT_DIV`, `CONFIG`, `ACCEL_CONFIG2` đọc bằng `i2cget` khớp hết với hàm DLPF. Ghi sai giá trị → `EINVAL`
+- Tốc độ đo: 50 → 50.0, 200 → 199.7, 333 → 330.9 Hz (31 bản ghi trùng: nhịp hrtimer và đồng hồ chip độc lập). `accel_range`: `ACCEL_CONFIG` 0x08/0x10/0x18/0x00, giá trị thô đổi đúng tỉ lệ; đổi khi đang stream thấy một khe ~25 ms, không có bản ghi lẫn hai thang
+
+**Bước 4: ioctl, app test (2026-10-29)**
+- `apps/mpu6050-test/` + recipe (`DEPENDS = "mpu6050-uapi"`), build không warning, `PACKAGE_ARCH` `cortexa8hf-neon`. Selftest 13/13 PASS: `EAGAIN` ngay sau open, `EBUSY`, `GET_CONFIG` nhất quán, `GET_STATS`, `ENOTTY`, `ESPIPE`, `write` → `EBADF` (do VFS: fd `O_RDONLY`, driver không có `.write`), `poll` → `POLLIN`, `read` 8 → `EINVAL`, `read` 40 → 32, `ts_ns` đơn điệu và cùng miền `CLOCK_MONOTONIC`, `FLUSH` → `EAGAIN` (hoặc chen một bản ghi), mở lại được
+- App 100/s, age (now − `ts_ns` của mẫu cuối) ~1.4 ms. Mỗi dòng gọi lại `GET_CONFIG` nên đổi `accel_range` giữa chừng (±2 → ±4 g) thì cột g không nhảy
+- `strace`: `poll` → `read` 16 hoặc 32 → `read` `EAGAIN`; ioctl hiện đúng mã ở trên
+- `ERESTARTSYS`: ở 100 Hz lần đầu không thấy (`cat` không ở trong `read` lúc nhận `SIGSTOP`); 4 Hz: `read = ? ERESTARTSYS` → `SIGSTOP` → `SIGCONT` → `read` gọi lại trả các bản ghi dồn; `SIGTERM` cũng `ERESTARTSYS` rồi chết, không gọi lại
+- Thời gian một lần ghi sysfs (`strace -T`): ổn định ~5 ms (6 giao dịch ghi + đọc lại), như nhau lúc không mở và lúc stream. Lần đầu mỗi thuộc tính sau `insmod` 15–24 ms; `dependency chains` +209 sau lượt đầu, +74 sau lượt hai, lượt hai mọi lần ghi 4.6–5.2 ms → lockdep kiểm chuỗi khóa mới. Cũng giải thích khe 28–42 ms ở giây đầu app chạy ngay sau `insmod`. Khe khi đổi cấu hình ≈ tối đa một chu kỳ cũ + thời gian ghi + một chu kỳ mới; app `GET_CONFIG` chờ `cfg_lock` trong lúc đó (age 52.9 ms ở dòng có lệnh đổi)
+
+**Bước 5: chạy tải, dọn dẹp (`scripts/mpu-stress.sh`)**
+- `mod`: `rmmod` khi app đang mở → `Module mpu6050 is in use`; 20 vòng `insmod`/app/`rmmod` 0 lỗi, `kmalloc-8k` 23 → 23, `kmalloc-4k` 47 → 47 (không có kmemleak; đây là phép so thô)
+- `oc`: 20 selftest 0 FAIL; 20 cặp app mở cùng lúc: 20 chạy, 20 `EBUSY`
+- `sysfs`: 45 vòng trong 30 s ghi ngẫu nhiên 9 tốc độ × 4 thang khi app đang chạy: 0 lỗi, app 7397 bản ghi, `dropped` 0
+- `load 600` (stress-ng cpu + io + vm 64M): lockdep im, nhưng 50172 bản ghi / ~604 s = 83/s, `dropped` 0. Lỗi đếm: kworker `SCHED_OTHER` bị chèn, `schedule_work` trả false khi work cũ còn chờ, nhịp mất không vào đâu. Sửa: `schedule_work` false → `dropped`++; `hrtimer_forward_now` trả N > 1 → `dropped` += N − 1. ABI không đổi, đúng nghĩa đã hứa ("mẫu mất từ lúc probe"); ROADMAP tuần 7 cũng cho FIFO tràn vào `dropped`
+- `load 120` sau sửa: 11876 + 583 = 12459 ≈ 124.6 s × 100. Tỉ lệ mất 4.7% (lần 600 s ~17%, stress-ng `vm` lúc đó chạy 1143 bogo-ops/s so với 654: tải nặng hơn). Một lần đo không đủ chốt tỉ lệ
+
+**Logic analyzer (`docs/i2c-record-2026-10-29.*`, `docs/i2c-stream-2026-10-29.*`; 2 MHz, 1 M mẫu, SCL D0/SDA D1)**
+- Một bản ghi: `dd if=/dev/mpu6050 bs=16 count=1` → đúng một giao dịch trong 0.5 s (đóng là nguồn dừng): `d1 c1 69 0f 93 fd db 10 13(N)`; `hexdump` cùng lần: `-16023 3987 -549 4115`, ts 673 × 2³² + 3132317271 ns (~2893.6 s từ boot). Khớp từng LSB: dây → `be16_to_cpu` → kfifo → `read()`
+- Stream (`mpu6050-test -n 100`): 50 burst trọn, mỗi burst 101 cạnh SCL (`S d0 3b Sr d1` + 8 byte, 7 ACK, byte cuối NACK, `P`), 1.11–1.13 ms. Hai burst bị kéo dài với cùng 101 cạnh: 4730 µs (dừng 3272 µs sau byte `d0`), 2597 µs (dừng 1578 µs giữa `3b` và Sr, bình thường ~108 µs). SCL bị giữ thấp giữa giao dịch; MPU-6500 không kéo giãn xung, nhiều khả năng `omap_i2c` (ngắt chạy trong thread trên RT) chậm phục vụ. Chưa chứng minh bên nào giữ
+- Hai cặp burst trùng từng byte (186.6 / 189.7 ms, 417.4 / 419.7 ms): work trễ ~7 ms, nhịp sau vẫn đúng lưới, đọc lại mẫu cũ của chip. Bản ghi trùng có `ts_ns` khác nhau và không vào `dropped`. Tuần 6 (DATA_RDY) bỏ được
+- Giải mã độc lập bằng `scripts/i2c-decode.py`, khớp decoder PulseView. File `.pvs` (phiên PulseView) không commit
+
+**Câu hỏi đã đóng**
+- Ai gửi NACK ở byte đọc cuối: master (BBB). Bit thứ 9 do bên nhận byte gửi; trong pha đọc bên nhận là master. NACK báo chip thôi gửi và nhả SDA, để master tạo được STOP (SDA lên khi SCL cao); ACK thì chip sẽ đẩy byte 0x43 và có thể giữ SDA thấp. Trên ảnh: ACK sau `d0`, `3b`, `d1` là của chip, ACK sau 7 byte dữ liệu là của BBB. (Tus nhờ giải thích, chưa tự trả lời)
+
+**Commit**: `94ac4c4` driver, `f7ca9eb` app, `1b4e2da` script, `5b711a3` ảnh LA, cùng commit ghi mục này.
+
+---
+
 ## Tuần 5 — bàn giao, chưa bắt đầu (ghi 2026-10-23)
 
 Đọc mục này trước khi bắt đầu tuần 5 ở session mới. Tuần 1–4 xong; chi tiết tuần 4 ở mục ngay dưới. Ghi chú kiến thức tuần 4: `~/workspace/VKU/DoAn/week4-knowledge-summary.md`.
