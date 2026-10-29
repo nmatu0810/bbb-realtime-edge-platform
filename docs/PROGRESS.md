@@ -5,6 +5,95 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## Tuần 7 — bàn giao, chưa bắt đầu (ghi 2026-10-30)
+
+Đọc mục này trước khi bắt đầu tuần 7 ở session mới. Tuần 1–6 xong; chi tiết tuần 6 ở mục ngay dưới. Ghi chú kiến thức tuần 6: `~/workspace/VKU/DoAn/week6-knowledge-summary.md`. Hạn nộp đồ án chuyên ngành 2026-11-25: giữ cả ngắt lẫn FIFO, không cắt.
+
+**Hệ thống đang chạy (sau tuần 6)**
+- Ảnh trên bo vẫn là ảnh tuần 4 (`rootfs-20261023085915.wic`, kernel `-preempt-rt-debug`). Driver, app, header chưa vào ảnh
+- Trên bo, trong `/tmp`: `mpu6050.ko` (`f7cab6bc…`, 16640 byte, đang nạp), `mpu6050-test` (`3ad98c68…`, không đổi), `strace`, `mpu-check.sh`, `mpu-stress.sh`, `mpu-trace.sh`
+- Driver: nguồn dữ liệu là ngắt DATA_RDY. `devm_request_threaded_irq` (`IRQF_ONESHOT | IRQF_NO_AUTOEN`, `IRQ_DISABLE_UNLAZY`), thread `irq/50-mpu6050` `SCHED_FIFO` 50. Nửa trên lấy `ts_ns` và đếm mẫu mất bằng `atomic64_xchg(irq_ts)`, thread đọc burst 8 byte. Start = ghi `INT_ENABLE` + `enable_irq`; stop = `disable_irq` + tắt `INT_ENABLE`. `INT_PIN_CFG` 0x00. Phía đọc không đổi
+- Chia việc mới (2026-10-29): Claude tự build, chép, chạy lệnh trên bo qua ssh, chụp LA bằng `sigrok-cli`; Tus làm phần cứng, sudo, ghi thẻ, reboot, commit. Xem CLAUDE.md
+
+**Tuần 7 theo kế hoạch (ROADMAP)**: FIFO của chip (`ACCEL` + `TEMP`, 8 byte/mẫu), đọc theo lô, `ts_ns` nội suy lùi, tràn → `dropped` + reset FIFO, thí nghiệm tràn có/không reset. Đo thời gian I2C 100 kHz, quyết 400 kHz. Build non-RT + san bằng `.config`. Mốc: `dropped` = 0 ở tốc độ tối đa đã chọn; tràn cố ý → `dropped` tăng, tự hồi; cả hai kernel qua bộ kiểm.
+
+**Điểm cần quyết ở đầu tuần 7 (phân tích rồi khuyến nghị)**
+- Ngắt nào kích đọc lô: DATA_RDY mỗi mẫu rồi chỉ đọc khi `FIFO_COUNT` ≥ ngưỡng (vẫn 1000 lần đánh thức/s ở 1000 Hz), hay chia nhịp ở driver (đếm cạnh, đọc mỗi N ngắt). Chip không có ngắt watermark
+- Đọc `INT_STATUS` mỗi lô để thấy `FIFO_OFLOW_INT` (cờ dính, chỉ xóa khi đọc 0x3A vì không bật ANYRD), hay suy ra tràn từ `FIFO_COUNT` = 512
+- `ts_ns` nội suy lùi: dùng `ts` của cạnh cuối và chu kỳ thật của chip (đo được 9.9906 ms ở "100 Hz", nhanh 0.09% so với đồng hồ LA), hay chu kỳ danh định
+- 400 kHz: đổi `clock-frequency` của i2c2 trong overlay (dtbo trên FAT, đổi bằng scp + reboot) hay trong dtb gốc
+- Lỗi 1000 Hz (dưới) phải đo lại trong chế độ đọc lô trước khi kết luận gì về nó
+
+**Giới hạn đã biết, mang sang**
+- Đọc từng mẫu ở 1000 Hz: chip thỉnh thoảng NACK byte địa chỉ đọc (`d0 3b Sr d1(N)`), lần sau `omap_i2c` báo `Arbitration lost` dù trên dây đủ 101 cạnh, lần sau nữa chờ `OMAP_I2C_TIMEOUT` 1 s với bus rảnh. 500 Hz 60 s sạch. Chưa rõ gốc; đã thử `i2ctransfer` từ userspace (quá chậm để kết luận) và xem vị trí cạnh INT (không quyết định). Đã chọn giữ `sample_rate` 4..1000 (hướng B), mẫu mất vào `dropped`
+- Trong lúc thread kẹt trong lần treo 1 s, ghi sysfs cũng chờ tới 1 s (`disable_irq` chờ thread). Xét ở tuần 8 cùng đường lỗi I2C
+- `ts_ns` có thể trễ tới ~6.5 ms dưới tải I/O (khe 16.5 ms, `dropped` 0). Giả thuyết chưa kiểm: `irq/26` (GPIO) cùng FIFO 50 với thread ngắt mmc/i2c. GĐ2 xét nâng ưu tiên `irq/26`
+- Còn từ tuần 5: unbind khi còn fd mở (kref tuần 8); `dropped` gộp nhiều nguồn; kernel debug làm chậm lần đầu mỗi đường khóa
+- Lấy `ts` rồi mới đọc burst: thread kẹt hơn một chu kỳ ở giữa thì có thể ra một bản ghi trùng (chưa thấy: 0/9000). FIFO bỏ được
+
+**Dữ kiện chỉ người làm có**: không còn câu nào đang chờ.
+
+**Bẫy mới**
+- PulseView mở là giữ USB của LA: `sigrok-cli` báo "Unable to claim USB interface"
+- `sigrok-cli` ghi `.sr` thành nhiều khối `logic-1-N` (20480 mẫu); script đọc phải nối đủ (đã sửa `i2c-decode.py`)
+- Đầu vào LA để hở đọc ra mức cao; kênh INT đúng chỗ phải thấp khi ngắt tắt
+- `/proc/<pid>/stat`: trường 40 là `rt_priority`, 41 là `policy`. Bo không có `chrt`
+- `tail_check` trước đây không đếm "burst read failed"/"Arbitration lost" (mẫu grep chỉ có `warning|bug|error`); đã thêm `failed|lost`
+- zsh: `B="ssh -i …"; $B 'cmd'` báo "no such file" (không tách từ); dùng script bọc
+
+---
+
+## Tuần 6 — ngắt DATA_RDY, threaded IRQ (2026-10-30) — XONG 2026-10-30
+
+Mốc kiểm tuần 6 đạt hết ở 100 Hz: `/proc/interrupts` tăng đúng nhịp chip; thread `SCHED_FIFO` 50; LA bắt INT + I2C trong cùng một bản ghi, đo cạnh INT → `ts_ns`; không còn bản ghi trùng; 30 phút `stress-ng` không mất mẫu; selftest, `mpu-check.sh`, `mpu-stress.sh` đạt; lockdep im sau mọi đợt. Lệch: 1000 Hz không dùng được khi đọc từng mẫu (bước 4).
+
+**Thiết kế đã chốt (duyệt 2026-10-29)**
+- Ngắt xin một lần ở probe, sau `configure`, trước `misc_register`: `devm_request_threaded_irq(…, IRQF_ONESHOT | IRQF_NO_AUTOEN, "mpu6050")`. `irq_set_status_flags(IRQ_DISABLE_UNLAZY)` để `disable_irq` mask ngay ở GPIO (không phát lại cạnh cũ), trả cờ bằng devm action. Kiểu trigger lấy từ overlay, probe chỉ kiểm phải là `IRQ_TYPE_EDGE_RISING`
+- Nửa trên `mpu6050_irq`: `atomic64_xchg(&irq_ts, ktime_get_ns())`, giá trị cũ khác 0 → `dropped`++ (thread chưa lấy mẫu trước, chip đã ghi đè). Được vì `gpio-omap` dùng `handle_simple_irq` cho cạnh: không mask, mọi cạnh tới nửa trên
+- Thread `mpu6050_irq_thread`: `xchg(&irq_ts, 0)` lấy `ts`, đọc burst 8 byte, `kfifo_put`. Đọc lỗi cũng `dropped`++. Không lấy khóa nào của driver
+- `start`: ghi `INT_ENABLE` = `RAW_RDY_EN` (có đọc lại), `enable_irq`. `stop`: `disable_irq` (chờ nửa trên và thread xong, không phụ thuộc I2C), ghi `INT_ENABLE` = 0 (lỗi chỉ cảnh báo). `release`/`remove` chỉ gọi `stop` khi `streaming` (độ sâu `disable_irq`). `open` và reconfig nhận lỗi từ `start`
+- Thứ tự khóa không đổi (`cfg_lock` → `read_lock`); thêm: thread không lấy `cfg_lock`/`read_lock`, vì `stop` chờ thread trong `cfg_lock` (lockdep không thấy kiểu chờ này)
+- `INT_PIN_CFG` = 0x00 (xung 50 µs, không ANYRD), quyết sau bước 0. `sample_rate` giữ 4..1000 (hướng B, quyết sau bước 4)
+
+**Bước 0: xung INT (LA D2 vào chân INT, `docs/int-pulse-2026-10-30.sr`)**
+- Bật `INT_ENABLE` bằng `i2cset -f`, không ai đọc `INT_STATUS`: 50 xung trong 0.5 s, rộng 48.5–49 µs, chu kỳ trung bình 9.9906 ms, không giao dịch I2C. `INT_STATUS` vẫn đọc ra 0x01: cờ dính nhưng không chặn xung → không cần ack mỗi mẫu. Không bật ANYRD vì tuần 7 sẽ xóa mất `FIFO_OFLOW_INT`
+- Trước khi kẹp que, mọi kênh D2–D7 đọc mức cao dù `devmem 0x4804C138` bit 28 (P9_12) = 0: đầu vào LA để hở đọc ra cao
+
+**Bước 1: build, nạp (`f7cab6bc…` bản cuối; bản đầu `71ad314e…`)**
+- Build không warning. Sau `insmod`: `50: 0 4804c000.gpio 28 Edge mpu6050`, số đếm 0 khi chưa mở, `INT_ENABLE` 0x00
+- Mở 10 s: irq 50 +1004, irq 26 +1004 (mỗi cạnh một ngắt GPIO), bản ghi = ngắt, dư 0, CPU rảnh 93%. Đóng: `INT_ENABLE` về 0x00
+- `irq/50-mpu6050`: policy 1 (FIFO), rt_priority 50; `irq/26-4804c000.gpio`, `irq/27-4819c000.i2c` cũng FIFO 50
+
+**Bước 2: hồi quy phía đọc**
+- Selftest 13/13; `cfg` 100 → 201/s, khe 10.0 ms ở 100 Hz, 5.0–5.5 ms ở 200 Hz (tuần 5: 8.4–11.7 ms); `strace`, `restart` như tuần 5
+- `gap`: ghi sysfs lúc stream 6.2–10.6 ms (tuần 5 ~5 ms): thêm ghi `INT_ENABLE` = 0 và ghi + đọc lại khi bật
+
+**Bước 3: bản ghi trùng (`mpu-check.sh dup`)**: 0/3000 ở 100 Hz, 0/6000 ở 333 Hz (tuần 5: 31 ở 333 Hz), `dropped` 0
+
+**Bước 4: quét tốc độ (`mpu-check.sh sweep`, 10 s mỗi mức)**
+- 100/200/333/500 Hz: bản ghi = ngắt (dư 0–1), dropped 0–0.2/s, CPU rảnh 94/89/85/78%. 500 Hz 60 s: 498.6/s, 0 lỗi I2C
+- 1000 Hz: 103 bản ghi/s, 799 dropped/s, dư 11 = 11 lần đọc lỗi (lúc đó chưa vào `dropped`; đã sửa). dmesg: `-121` → `Arbitration lost` + `-11` → `-110`, lặp lại. LA 6 s: NACK ở `d0 3b Sr d1(N)`, giao dịch kế đủ 101 cạnh, sau đó bus rảnh (SCL/SDA cao, INT vẫn 1 kHz) suốt lúc `omap_i2c` chờ 1 s. Lúc không lỗi thread theo 713–775/s
+- Tách giả thuyết: `i2ctransfer` từ userspace, `INT_ENABLE` 0, 1000 vs 100 Hz: 857 giao dịch 0 lỗi, nhưng chỉ 14 giao dịch/s, không đủ so với tần suất ~1/1600. Vị trí cạnh INT so với `Sr`: 29 giao dịch cùng khung 0–25 µs, chỉ 1 NACK. Chưa rõ gốc → hướng B (Tus duyệt): giữ 4..1000, ghi giới hạn
+
+**Bước 5: cạnh INT → `ts_ns` (`scripts/mpu-trace.sh` + LA, `docs/int-i2c-2026-10-30.sr`)**
+- ftrace `trace_clock mono`, `irq_handler_entry` (26, 50), `i2c_write` (adapter 2), 1000 mẫu, 0 sự kiện mất. irq 26 → irq 50 (`ts_ns`): trung vị 54, p99 73, max 208 µs. irq 50 → `i2c_write`: 68 / 113 / 121 µs. |`ts_ns` − irq 50 entry| 2–4 µs
+- LA: cạnh INT → START trung vị 162, p99/max 208 µs (100/100 cạnh có START). ftrace irq 26 → `i2c_write` trung vị 122 µs; lệch ~40 µs = cạnh → irq 26 + `i2c_write` → START. Suy ra cạnh INT → `ts_ns` ≈ 55–95 µs (kernel debug)
+- Burst 1093–1112 µs
+
+**Bước 6: `mpu-stress.sh load 1800`** (stress-ng vm 1072 bogo-ops/s): 180673 bản ghi, `dropped` +0, irq 50 +180674 (≈ 1805 s × 100.09). 101–102/s mọi giây, 0 giây khe > 20 ms (tuần 5: thấp nhất 72/s, 128/602 s khe > 20 ms). Khe lớn nhất 16.5 ms nhưng không mất mẫu: `ts_ns` lấy trễ; 1764/1788 giây khe ≤ 10.5 ms, 24 giây 10.5–16.5 ms. Lockdep 1
+
+**Bước 7: dọn dẹp**
+- `oc`: 20 selftest 0 FAIL, 20 cặp: 20 chạy, 20 `EBUSY`
+- `mod`: `rmmod` khi mở "in use"; 20 vòng 0 lỗi; `kmalloc-8k` 23 → 23, `4k` 47 → 47. Sau `rmmod` không còn dòng 50 trong `/proc/interrupts`, `/sys/kernel/irq/50/actions` rỗng
+- `sysfs` (ghi ngẫu nhiên kể cả 1000 Hz): 0 lần ghi lỗi; `dropped` +1268 rồi +1629; lần hai giữ dmesg: 2 `-110`, 2 `Arbitration lost`, 1 `-121` (giới hạn 1000 Hz, mỗi lần treo ~1 s)
+- `shake` (Tus nghiêng module, 15 s): đứng yên `ax -0.984 ay +0.213 az -0.058`; lúc nghiêng az lên +0.94, ay từ −0.32 tới +0.77, |a| ≈ 0.91–1.0 g (thấp hơn khi đang chuyển động); 101/s, khe 10.0–10.1 ms, `dropped` +0
+
+**Script mới/sửa**: `mpu-check.sh` thêm `irq`, `dup [n]`, `sweep`; `mpu-stress.sh load` in số ngắt, `tail_check` đếm thêm `failed|lost`; `mpu-trace.sh` (ftrace); `la-pulses.py` (xung từng kênh); `la-int2start.py` (cạnh INT → START); `i2c-decode.py` nối các khối `logic-1-N`.
+
+**Commit**: chưa (chờ Tus).
+
+---
+
 ## Tuần 6 — bàn giao, chưa bắt đầu (ghi 2026-10-29)
 
 Đọc mục này trước khi bắt đầu tuần 6 ở session mới. Tuần 1–5 xong; chi tiết tuần 5 ở mục ngay dưới. Ghi chú kiến thức tuần 5: `~/workspace/VKU/DoAn/week5-knowledge-summary.md`.
@@ -48,10 +137,8 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 - `dropped` gộp mất ở phía đọc (kfifo đầy) và phía nguồn (lỡ nhịp). Tách hay không: quyết ở tuần 7 khi có `FIFO_OFLOW` thật
 - Kernel debug: lần đầu mỗi đường khóa sau `insmod` chậm 3–5 lần (lockdep kiểm chuỗi mới). Đo thời gian thì chạy làm nóng một lượt, bỏ lượt đó; số chính thức đo trên kernel không debug (tuần 7)
 
-**Dữ kiện chỉ người làm có, vẫn chưa trả lời**
-- Chữ in trên con chip
-- Kinh nghiệm viết module kernel trước đây, phần đã làm trong driver model của Nothan-OS
-- Ngày nộp và ngày bảo vệ đồ án chuyên ngành (spec dòng 129: nếu ngắn hơn 8 tuần thì dời ngắt sang GĐ2; tuần 6 chính là tuần ngắt)
+**Dữ kiện chỉ người làm có**
+- Ngày nộp đồ án chuyên ngành: 2026-11-25 (Tus trả lời 2026-10-29), giữ ngắt và FIFO, không cắt
 
 **Bẫy mới (thêm vào danh sách các mục bàn giao trước)**
 - Biến shell chỉ sống trong terminal đã gán: `sha256sum $APP` với `$APP` rỗng đọc stdin và đứng im. Dùng `"${APP:?}"`
