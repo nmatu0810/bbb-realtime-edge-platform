@@ -8,18 +8,19 @@
  *
  * Probe reset chip, ghi tường minh mọi thanh ghi cấu hình rồi đọc lại để kiểm;
  * remove cho chip ngủ. Tuần 5: /dev/mpu6050 (misc device) với open, release,
- * read, poll trên kfifo; nguồn dữ liệu tạm là hrtimer + work đọc burst theo
- * nhịp sample_rate (bước 2); sysfs sample_rate, accel_range, dropped (bước 3);
- * ioctl GET_CONFIG, GET_STATS, FLUSH (bước 4). Chưa ngắt (tuần 6), chưa FIFO của
- * chip (tuần 7).
+ * read, poll trên kfifo; sysfs sample_rate, accel_range, dropped; ioctl
+ * GET_CONFIG, GET_STATS, FLUSH. Tuần 6: nguồn dữ liệu là ngắt DATA_RDY, threaded
+ * IRQ đọc burst từng mẫu (thay hrtimer + work của tuần 5). Chưa FIFO của chip
+ * (tuần 7).
  */
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/hrtimer.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kfifo.h>
 #include <linux/kstrtox.h>
 #include <linux/ktime.h>
@@ -31,7 +32,6 @@
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
-#include <linux/workqueue.h>
 
 #include <projectb/mpu6050.h>
 
@@ -54,6 +54,7 @@
 #define MPU6050_PWR_MGMT_1_SLEEP	BIT(6)
 #define MPU6050_PWR_MGMT_1_CLKSEL_PLL	0x01	/* PLL khi sẵn sàng, không thì dao động trong */
 #define MPU6050_SIGNAL_PATH_RESET_ALL	0x07	/* GYRO_RST | ACCEL_RST | TEMP_RST */
+#define MPU6050_INT_ENABLE_RAW_RDY	BIT(0)
 
 /* Chờ sau mỗi bước reset, như inv_mpu6050 (INV_MPU6050_POWER_UP_TIME). */
 #define MPU6050_RESET_DELAY_MS		100
@@ -94,7 +95,8 @@ struct mpu6050_chip {
  * refcount module). Tuần 8 sửa bằng kref; trước đó đừng unbind khi có fd mở.
  *
  * Khóa: cfg_lock rồi mới read_lock, không bao giờ ngược lại. Phía ghi fifo chỉ có
- * một producer (bước 2: một work item; tuần 6: thread IRQ) nên không khóa.
+ * một producer (thread IRQ) nên không khóa. Thread IRQ không lấy khóa nào của
+ * driver: mpu6050_stop chờ nó trong lúc giữ cfg_lock.
  */
 struct mpu6050 {
 	struct i2c_client *client;
@@ -108,14 +110,11 @@ struct mpu6050 {
 	bool streaming;
 
 	/*
-	 * Nguồn tạm (tuần 6 thay bằng IRQ DATA_RDY): hrtimer giữ nhịp, work đọc I2C.
-	 * Callback hrtimer và hàm work không lấy khóa nào, vì dừng nguồn là
-	 * hrtimer_cancel + cancel_work_sync trong cfg_lock. period chỉ đổi khi nguồn
-	 * đã dừng (mpu6050_start).
+	 * Nguồn dữ liệu: ngắt DATA_RDY. irq_ts là ts_ns nửa trên lấy cho mẫu chưa đọc,
+	 * 0 khi thread đã lấy (ktime_get_ns không bao giờ ra 0 sau boot).
 	 */
-	struct hrtimer timer;
-	struct work_struct read_work;
-	ktime_t period;
+	int irq;
+	atomic64_t irq_ts;
 
 	/*
 	 * Phía đọc của fifo. Một người mở chưa phải một người đọc: hai luồng (hoặc
@@ -300,8 +299,11 @@ static int mpu6050_configure(struct mpu6050 *st)
 	if (ret)
 		return ret;
 
-	/* INT active-high, push-pull, xung 50 µs, xóa khi đọc INT_STATUS: khớp
-	 * IRQ_TYPE_EDGE_RISING trong overlay. Ngắt bật ở tuần 6, FIFO ở tuần 7. */
+	/* INT active-high, push-pull, xung 50 µs: khớp IRQ_TYPE_EDGE_RISING trong
+	 * overlay. Xung lặp mỗi mẫu dù không ai đọc INT_STATUS (LA 2026-10-30: 50 xung
+	 * rộng 49 µs trong 0.5 s), nên không cần đọc nó. Không bật INT_ANYRD_2CLEAR:
+	 * tuần 7 đọc FIFO_COUNT sẽ xóa mất cờ FIFO_OFLOW. INT_ENABLE bật ở
+	 * mpu6050_start. */
 	ret = mpu6050_write_check(client, MPU6050_REG_INT_PIN_CFG, 0x00);
 	if (ret)
 		return ret;
@@ -312,12 +314,6 @@ static int mpu6050_configure(struct mpu6050 *st)
 	if (ret)
 		return ret;
 	return mpu6050_write_check(client, MPU6050_REG_USER_CTRL, 0x00);
-}
-
-/* Lấy mẫu nội 1 kHz, chia (1 + SMPLRT_DIV): chu kỳ đúng (div + 1) ms. */
-static u64 mpu6050_period_ns(const struct mpu6050 *st)
-{
-	return (u64)(st->rate_div + 1) * NSEC_PER_MSEC;
 }
 
 /* Tốc độ thật làm tròn xuống, như sysfs sample_rate và mpu6050_config. */
@@ -332,47 +328,42 @@ static unsigned int mpu6050_range_g(const struct mpu6050 *st)
 }
 
 /*
- * Vì sao không dùng delayed_work: độ trễ N jiffy chạy sau N..N+1 tick, timer wheel
- * cộng thêm một tick để không bao giờ chạy sớm (calc_index, kernel/time/timer.c).
- * HZ = 100 nên hẹn lại 1 jiffy sau mỗi lần chạy cho ra 20 ms (50 Hz, đo
- * 2026-10-28); bù bằng độ trễ 0 thì work chạy ngay, đọc lại đúng mẫu cũ (cặp bản
- * ghi giống hệt cách nhau 3.4 ms). hrtimer không phụ thuộc tick.
+ * Nửa trên: chỉ lấy thời điểm. Trên RT hàm này chạy trong thread irq/26 của
+ * gpio-omap (IRQF_ONESHOT giữ nó khỏi bị ép thành thread riêng, manage.c), nên ts
+ * đã gồm độ trễ đánh thức thread đó.
  *
- * Callback không được ngủ, I2C thì ngủ: chỉ xếp work. hrtimer_forward_now giữ mốc
- * tuyệt đối (tốc độ trung bình không trôi theo độ trễ) và tự bỏ các nhịp đã lỡ.
- * Work còn chờ chưa chạy thì schedule_work trả false (đang chạy thì xếp lại được).
- * Trên RT callback chạy trong luồng softirq (ktimers), không phải ngắt cứng.
- *
- * Nhịp mất vì work chưa chạy hay callback trễ hơn một chu kỳ cũng tính vào dropped,
- * cùng nghĩa "mẫu mất" với fifo đầy. Không tính thì kworker (SCHED_OTHER) bị
- * stress-ng chèn mất 17% mẫu mà dropped vẫn 0 (đo 2026-10-29).
+ * gpio-omap dùng handle_simple_irq cho ngắt cạnh, không mask: cạnh tới lúc thread
+ * còn chạy vẫn vào đây. irq_ts khác 0 nghĩa là thread chưa lấy mẫu trước, chip đã
+ * ghi đè thanh ghi dữ liệu: mất một mẫu, tính vào dropped. Các lần đánh thức dồn
+ * lại chỉ cho thread chạy thêm một lần (__irq_wake_thread), đọc mẫu mới nhất với ts
+ * mới nhất.
  */
-static enum hrtimer_restart mpu6050_timer_fn(struct hrtimer *timer)
+static irqreturn_t mpu6050_irq(int irq, void *data)
 {
-	struct mpu6050 *st = container_of(timer, struct mpu6050, timer);
-	u64 overruns;
+	struct mpu6050 *st = data;
 
-	if (!schedule_work(&st->read_work))
+	if (atomic64_xchg(&st->irq_ts, ktime_get_ns()))
 		atomic64_inc(&st->dropped);
-	overruns = hrtimer_forward_now(timer, st->period);
-	if (overruns > 1)
-		atomic64_add(overruns - 1, &st->dropped);
-	return HRTIMER_RESTART;
+	return IRQ_WAKE_THREAD;
 }
 
 /*
- * Nguồn tạm: mỗi nhịp đọc burst 8 byte rồi đẩy vào fifo. ts_ns là lúc bắt đầu đọc,
- * không phải lúc chip lấy mẫu, và nhịp hrtimer với đồng hồ chip độc lập nên đôi khi
- * đọc lặp hay sót một mẫu của chip: số đo thời gian của tuần 5 không dùng cho tuần 7.
+ * Nửa dưới (thread irq/N-mpu6050, SCHED_FIFO 50): đọc burst 8 byte rồi đẩy vào
+ * fifo. Lấy ts trước khi đọc: nếu thread kẹt hơn một chu kỳ giữa hai việc này, burst
+ * đọc mẫu sau với ts của mẫu trước và lần chạy kế đọc lại đúng mẫu đó (bản ghi
+ * trùng). Ở 100 Hz phải kẹt ~9 ms; FIFO của chip (tuần 7) bỏ được giới hạn này.
  */
-static void mpu6050_read_work(struct work_struct *work)
+static irqreturn_t mpu6050_irq_thread(int irq, void *data)
 {
-	struct mpu6050 *st = container_of(work, struct mpu6050, read_work);
+	struct mpu6050 *st = data;
 	__be16 raw[MPU6050_SAMPLE_REGS];
 	struct mpu6050_sample s;
 	int ret;
 
-	s.ts_ns = ktime_get_ns();
+	s.ts_ns = atomic64_xchg(&st->irq_ts, 0);
+	if (!s.ts_ns)
+		return IRQ_HANDLED;
+
 	ret = i2c_smbus_read_i2c_block_data(st->client, MPU6050_REG_ACCEL_XOUT_H,
 					    sizeof(raw), (u8 *)raw);
 	if (ret == sizeof(raw)) {
@@ -386,34 +377,57 @@ static void mpu6050_read_work(struct work_struct *work)
 		else
 			atomic64_inc(&st->dropped);
 	} else {
+		/* Mẫu của ngắt này không đọc được: cũng là mẫu mất. Đọc từng mẫu ở
+		 * 1000 Hz, chip thỉnh thoảng NACK và omap_i2c treo 1 s sau đó
+		 * (2026-10-30); 500 Hz chưa gặp. */
+		atomic64_inc(&st->dropped);
 		dev_err_ratelimited(&st->client->dev, "burst read failed: %d\n",
 				    ret < 0 ? ret : -EIO);
 	}
-}
-
-/* Gọi trong cfg_lock. Mẫu đầu sau một chu kỳ, nên read ngay sau open là -EAGAIN. */
-static void mpu6050_start(struct mpu6050 *st)
-{
-	st->period = ns_to_ktime(mpu6050_period_ns(st));
-	st->streaming = true;
-	hrtimer_start(&st->timer, st->period, HRTIMER_MODE_REL);
+	return IRQ_HANDLED;
 }
 
 /*
- * Gọi trong cfg_lock. Timer trước (nó là bên xếp work), rồi work. Cả hai _cancel
- * chờ callback/work đang chạy xong: trả về là không còn producer.
+ * Gọi trong cfg_lock. Bật chip trước rồi mới mở đường GPIO: ghi lỗi thì chưa có gì
+ * phải đóng lại. Lúc ngắt còn mask, gpio-omap tắt dò cạnh (trigger NONE) nên
+ * enable_irq không phát lại cạnh cũ. Mẫu đầu đến sau tối đa một chu kỳ, nên read
+ * ngay sau open là -EAGAIN.
+ */
+static int mpu6050_start(struct mpu6050 *st)
+{
+	int ret;
+
+	atomic64_set(&st->irq_ts, 0);
+	ret = mpu6050_write_check(st->client, MPU6050_REG_INT_ENABLE,
+				  MPU6050_INT_ENABLE_RAW_RDY);
+	if (ret)
+		return ret;
+	st->streaming = true;
+	enable_irq(st->irq);
+	return 0;
+}
+
+/*
+ * Gọi trong cfg_lock, chỉ khi streaming. disable_irq mask ngay ở GPIO
+ * (IRQ_DISABLE_UNLAZY) và chờ cả nửa trên lẫn thread chạy xong: trả về là không còn
+ * producer, kể cả khi bus I2C hỏng. Tắt INT_ENABLE sau, chỉ để chip thôi phát xung.
  */
 static void mpu6050_stop(struct mpu6050 *st)
 {
+	int ret;
+
 	st->streaming = false;
-	hrtimer_cancel(&st->timer);
-	cancel_work_sync(&st->read_work);
+	disable_irq(st->irq);
+	ret = i2c_smbus_write_byte_data(st->client, MPU6050_REG_INT_ENABLE, 0);
+	if (ret < 0)
+		dev_warn(&st->client->dev, "cannot disable DATA_RDY: %d\n", ret);
 }
 
 static int mpu6050_open(struct inode *inode, struct file *filp)
 {
 	/* misc_open đã đặt private_data = &st->misc trước khi gọi hàm này. */
 	struct mpu6050 *st = container_of(filp->private_data, struct mpu6050, misc);
+	int ret;
 
 	if (test_and_set_bit_lock(MPU6050_FLAG_OPEN, &st->flags))
 		return -EBUSY;
@@ -427,8 +441,12 @@ static int mpu6050_open(struct inode *inode, struct file *filp)
 	 */
 	mutex_lock(&st->cfg_lock);
 	kfifo_reset(&st->fifo);
-	mpu6050_start(st);
+	ret = mpu6050_start(st);
 	mutex_unlock(&st->cfg_lock);
+	if (ret) {
+		clear_bit_unlock(MPU6050_FLAG_OPEN, &st->flags);
+		return ret;
+	}
 
 	/* Không có vị trí đọc: lseek trả -ESPIPE, *ppos bị bỏ qua. */
 	return stream_open(inode, filp);
@@ -438,9 +456,14 @@ static int mpu6050_release(struct inode *inode, struct file *filp)
 {
 	struct mpu6050 *st = filp->private_data;
 
-	/* Tắt nguồn trước khi nhả cờ: người mở sau không gặp producer cũ. */
+	/*
+	 * Tắt nguồn trước khi nhả cờ: người mở sau không gặp producer cũ. streaming có
+	 * thể đã false nếu đổi cấu hình không bật lại được nguồn; disable_irq hai lần
+	 * thì độ sâu lệch, enable_irq sau đó không mở được ngắt.
+	 */
 	mutex_lock(&st->cfg_lock);
-	mpu6050_stop(st);
+	if (st->streaming)
+		mpu6050_stop(st);
 	mutex_unlock(&st->cfg_lock);
 
 	clear_bit_unlock(MPU6050_FLAG_OPEN, &st->flags);
@@ -570,13 +593,14 @@ static struct mpu6050 *mpu6050_from_dev(struct device *dev)
  * fifo, chạy lại, để mọi bản ghi đọc được sau khi store trả về đều theo cấu hình
  * mới. kfifo_reset chỉ khi producer đã dừng, và dưới read_lock vì có thể có luồng
  * đang trong read() (thứ tự cfg_lock rồi read_lock). Lỗi I2C giữa chừng: cố ghi lại
- * cấu hình cũ, trả lỗi cho userspace.
+ * cấu hình cũ, trả lỗi cho userspace. Không bật lại được nguồn thì streaming ở
+ * false, người đọc chờ tới khi mở lại (đường lỗi làm ở tuần 8).
  */
 static int mpu6050_reconfig(struct mpu6050 *st, unsigned int rate_div,
 			    unsigned int accel_fs)
 {
 	bool streaming = st->streaming;
-	int ret;
+	int ret, err;
 
 	if (streaming)
 		mpu6050_stop(st);
@@ -596,7 +620,9 @@ static int mpu6050_reconfig(struct mpu6050 *st, unsigned int rate_div,
 		mutex_lock(&st->read_lock);
 		kfifo_reset(&st->fifo);
 		mutex_unlock(&st->read_lock);
-		mpu6050_start(st);
+		err = mpu6050_start(st);
+		if (!ret)
+			ret = err;
 	}
 	return ret;
 }
@@ -703,6 +729,12 @@ static struct attribute *mpu6050_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mpu6050);
 
+/* Cờ nằm trên irq_desc, sống lâu hơn module: trả lại khi gỡ. */
+static void mpu6050_clear_unlazy(void *data)
+{
+	irq_clear_status_flags((long)data, IRQ_DISABLE_UNLAZY);
+}
+
 static int mpu6050_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -724,6 +756,14 @@ static int mpu6050_probe(struct i2c_client *client)
 	if (!chip)
 		return dev_err_probe(dev, -ENODEV, "unknown WHO_AM_I 0x%02x\n", ret);
 
+	/* Kiểu trigger lấy từ overlay, driver không ép; INT_PIN_CFG 0x00 (xung
+	 * active-high) chỉ khớp cạnh lên. */
+	if (client->irq <= 0)
+		return dev_err_probe(dev, -EINVAL, "no interrupt in device tree\n");
+	if (irq_get_trigger_type(client->irq) != IRQ_TYPE_EDGE_RISING)
+		return dev_err_probe(dev, -EINVAL, "irq %d is not IRQ_TYPE_EDGE_RISING\n",
+				     client->irq);
+
 	/* Cấp phát trước khi đụng vào chip: hết bộ nhớ thì chip vẫn y nguyên. */
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
@@ -740,9 +780,7 @@ static int mpu6050_probe(struct i2c_client *client)
 	st->accel_fs = MPU6050_DEFAULT_ACCEL_FS;
 	INIT_KFIFO(st->fifo);
 	init_waitqueue_head(&st->wq);
-	hrtimer_init(&st->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	st->timer.function = mpu6050_timer_fn;
-	INIT_WORK(&st->read_work, mpu6050_read_work);
+	st->irq = client->irq;
 	i2c_set_clientdata(client, st);
 
 	ret = mpu6050_reset(client, chip);
@@ -752,6 +790,22 @@ static int mpu6050_probe(struct i2c_client *client)
 	ret = mpu6050_configure(st);
 	if (ret)
 		return dev_err_probe(dev, ret, "configure failed\n");
+
+	/*
+	 * Xin ngắt sau khi INT_ENABLE đã về 0, để tắt (NO_AUTOEN); mpu6050_start mở.
+	 * ONESHOT: trên RT nửa trên không bị ép thành thread riêng, ts lấy sớm hơn một
+	 * lần đánh thức. UNLAZY: disable_irq mask ngay ở GPIO, cạnh tới lúc tắt không bị
+	 * ghi nhớ rồi phát lại khi bật. Thread mặc định SCHED_FIFO 50.
+	 */
+	irq_set_status_flags(st->irq, IRQ_DISABLE_UNLAZY);
+	ret = devm_add_action_or_reset(dev, mpu6050_clear_unlazy,
+				       (void *)(long)st->irq);
+	if (ret)
+		return ret;
+	ret = devm_request_threaded_irq(dev, st->irq, mpu6050_irq, mpu6050_irq_thread,
+					IRQF_ONESHOT | IRQF_NO_AUTOEN, "mpu6050", st);
+	if (ret)
+		return dev_err_probe(dev, ret, "cannot request irq %d\n", st->irq);
 
 	/*
 	 * Đăng ký sau cùng: userspace chỉ thấy /dev/mpu6050 khi mọi thứ đã sẵn. parent
@@ -781,11 +835,14 @@ static void mpu6050_remove(struct i2c_client *client)
 	/*
 	 * Gỡ /dev và thuộc tính trước: từ đây không ai mở mới, không còn store nào chạy.
 	 * Bình thường nguồn đã tắt ở release (rmmod bị chặn khi còn fd); chỉ unbind khi
-	 * fd còn mở mới tới đây với nguồn đang chạy, dừng nó trước khi chip ngủ.
+	 * fd còn mở mới tới đây với nguồn đang chạy, dừng nó trước khi chip ngủ. Ngắt
+	 * do devm trả sau hàm này.
 	 */
 	misc_deregister(&st->misc);
-	hrtimer_cancel(&st->timer);
-	cancel_work_sync(&st->read_work);
+	mutex_lock(&st->cfg_lock);
+	if (st->streaming)
+		mpu6050_stop(st);
+	mutex_unlock(&st->cfg_lock);
 
 	/* Ngủ: lần probe sau vẫn reset nên không phụ thuộc trạng thái này. */
 	ret = i2c_smbus_write_byte_data(client, MPU6050_REG_PWR_MGMT_1,
