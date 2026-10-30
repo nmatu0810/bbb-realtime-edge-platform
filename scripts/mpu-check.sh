@@ -9,13 +9,24 @@
 #   irq      thread IRQ (tên, chính sách, ưu tiên), rồi đo 10 s ở 100 Hz
 #   dup [n]  dd n bản ghi (mặc định 3000), đếm bản ghi liền nhau trùng 8 byte dữ liệu
 #   sweep    đo 10 s mỗi tốc độ 100 200 333 500 1000 Hz
+# Tuần 7:
+#   one <hz> [s]  đo một tốc độ (mặc định 10 s)
+#   rec <hz> <n>  n bản ghi vào /tmp/rec.bin, số đếm vào /tmp/rec.txt (chạy nền được)
+#   oflow <ms> [reset]  tràn FIFO chip: chặn thread <ms> một lần, oflow_reset 1 (mặc định) hay 0
 # Dòng đo: bản ghi/s app nhận, dropped/s, ngắt/s (irq 50), dư = ngắt - bản ghi - dropped
-# (phải ~0; vài bản ghi còn trong kfifo lúc đóng), CPU rảnh %.
+# (phải ~0; vài bản ghi còn trong kfifo lúc đóng), CPU rảnh %. Tuần 7 thêm dòng batches (debugfs).
 SYS=/sys/class/misc/mpu6050
 APP=/tmp/mpu6050-test
 ST=/tmp/strace
 
 irqcnt() { awk '$NF == "mpu6050" { print $2 }' /proc/interrupts; }
+# Tuần 7: bộ đếm chẩn đoán của thread (debugfs): neo, không neo, mẫu dư, reset FIFO
+DBG=/sys/kernel/debug/mpu6050
+DBGN="anchored unanchored extra fifo_reset misaligned settle"
+dbgcnt() { for f in $DBGN; do cat $DBG/$f 2> /dev/null || echo 0; done | tr '\n' ' '; }
+# dbgdiff "<trước>" "<sau>": hiệu từng bộ đếm, kèm tên
+dbgdiff() { echo "$DBGN | $1 | $2" | awk -F'|' '{ n = split($1, k, " "); split($2, a, " "); split($3, b, " ")
+	s = "batches:"; for (i = 1; i <= n; i++) s = s sprintf(" %s %d", k[i], b[i] - a[i]); print s }'; }
 cpuidle() { awk '/^cpu / { print $5, $2 + $3 + $4 + $5 + $6 + $7 + $8 }' /proc/stat; }
 uptime_cs() { awk '{ split($1, a, "."); print a[1] * 100 + a[2] }' /proc/uptime; }
 
@@ -24,16 +35,17 @@ measure() {
 	echo $1 > $SYS/sample_rate
 	hz=$(cat $SYS/sample_rate)
 	sleep 1
-	i0=$(irqcnt); d0=$(cat $SYS/dropped); c0=$(cpuidle); t0=$(uptime_cs)
+	i0=$(irqcnt); d0=$(cat $SYS/dropped); c0=$(cpuidle); t0=$(uptime_cs); g0=$(dbgcnt)
 	$APP > /tmp/measure.txt 2>&1 & p=$!
 	sleep $2
 	kill -INT $p; wait $p
-	i1=$(irqcnt); d1=$(cat $SYS/dropped); c1=$(cpuidle); t1=$(uptime_cs)
+	i1=$(irqcnt); d1=$(cat $SYS/dropped); c1=$(cpuidle); t1=$(uptime_cs); g1=$(dbgcnt)
 	n=$(awk '/^total/ { print $2 }' /tmp/measure.txt)
 	echo "$hz $n $i0 $i1 $d0 $d1 $t0 $t1 $c0 $c1" | awk '{
 		s = ($8 - $7) / 100; di = $4 - $3; dd = $6 - $5
 		printf "%4d Hz %5.1f s: %7.1f rec/s %6.1f drop/s %7.1f irq/s  residual %d  idle %.0f%%\n",
 			$1, s, $2 / s, dd / s, di / s, di - $2 - dd, 100 * ($11 - $9) / ($12 - $10) }'
+	[ -n "$g0" ] && echo "        $(dbgdiff "$g0" "$g1")"
 }
 
 case "$1" in
@@ -94,8 +106,39 @@ sweep)
 	for r in 100 200 333 500 1000; do measure $r 10; done
 	echo 100 > $SYS/sample_rate
 	;;
+one)
+	measure $2 ${3:-10}
+	echo 100 > $SYS/sample_rate
+	;;
+rec)
+	# dd $3 bản ghi ở $2 Hz vào /tmp/rec.bin; Δirq, Δdropped, debugfs vào /tmp/rec.txt. Chạy nền
+	# để chụp LA cùng lúc: scripts/bo.sh 'nohup sh /tmp/mpu-check.sh rec 1000 10000 > /dev/null 2>&1 &'
+	echo $2 > $SYS/sample_rate
+	i0=$(irqcnt); d0=$(cat $SYS/dropped); g0=$(dbgcnt)
+	dd if=/dev/mpu6050 bs=16 count=$3 of=/tmp/rec.bin 2> /dev/null
+	i1=$(irqcnt); d1=$(cat $SYS/dropped); g1=$(dbgcnt)
+	echo 100 > $SYS/sample_rate
+	{ echo "$2 Hz: $3 records, irq +$((i1 - i0)), dropped +$((d1 - d0))"
+	  dbgdiff "$g0" "$g1"
+	  dmesg | grep -c mpu6050 | sed 's/^/mpu6050 dmesg lines: /'; } > /tmp/rec.txt
+	;;
+oflow)
+	# Tràn FIFO chip cố ý: 100 Hz, dd 800 bản ghi nền, giây 3 chặn thread $2 ms một lần,
+	# oflow_reset = $3. In Δirq, bản ghi, Δdropped, bộ đếm debugfs; /tmp/oflow.bin để phân tích.
+	P=/sys/module/mpu6050/parameters
+	echo ${3:-1} > $P/oflow_reset
+	i0=$(irqcnt); d0=$(cat $SYS/dropped); g0=$(dbgcnt)
+	dd if=/dev/mpu6050 bs=16 count=800 of=/tmp/oflow.bin 2> /dev/null & p=$!
+	sleep 3; echo $2 > $P/stall_ms
+	wait $p
+	i1=$(irqcnt); d1=$(cat $SYS/dropped); g1=$(dbgcnt)
+	echo 1 > $P/oflow_reset
+	r=$(($(wc -c < /tmp/oflow.bin) / 16))
+	echo "stall $2 ms, reset ${3:-1}: irq +$((i1 - i0)), records $r, dropped +$((d1 - d0)), residual $((i1 - i0 - r - d1 + d0))"
+	dbgdiff "$g0" "$g1"
+	;;
 *)
-	echo "usage: $0 shake|cfg|strace|restart|gap|irq|dup [n]|sweep" >&2
+	echo "usage: $0 shake|cfg|strace|restart|gap|irq|dup [n]|sweep|one <hz> [s]|rec <hz> <n>|oflow <ms> [reset]" >&2
 	exit 2
 	;;
 esac

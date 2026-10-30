@@ -3,7 +3,7 @@
 # trace_clock mono = CLOCK_MONOTONIC, cùng miền với ts_ns của bản ghi. Mỗi mẫu có ba mốc:
 #   irq 26 entry   nửa trên cứng của gpio-omap: INT vừa tới CPU (cạnh INT + vài µs)
 #   irq 50 entry   nửa trên của driver, chạy trong thread irq/26: lúc lấy ts_ns
-#   i2c_write      thread irq/50-mpu6050 bắt đầu burst trên adapter 2
+#   i2c_write      thread irq/50-mpu6050 bắt đầu giao dịch đầu trên adapter 2 (tuần 7: đọc FIFO_COUNT)
 # In min/trung vị/p99/max (µs) của 26→50, 50→i2c, 26→i2c, và |ts_ns - irq 50 entry|.
 T=/sys/kernel/tracing
 n=${1:-500}
@@ -57,6 +57,10 @@ awk '$2 == 50 { print $1 }' /tmp/trace-ev.txt > /tmp/trace-t50.txt
 awk 'NR == FNR { t[++m] = $1; next }
 	{ ts = ($6 * 4294967296 + $5) / 1000
 	  while (j < m && t[j + 1] <= ts) j++
-	  d = 1e18; if (j >= 1) d = ts - t[j]; if (j < m && t[j + 1] - ts < d) d = t[j + 1] - ts
-	  if (m) print d }' /tmp/trace-t50.txt /tmp/trace-rec.txt > /tmp/trace-d4.txt
-printf "|ts_ns - irq50 entry|:  "; stats < /tmp/trace-d4.txt
+	  d = 1e18; k = j; if (j >= 1) d = ts - t[j]; if (j < m && t[j + 1] - ts < d) { d = t[j + 1] - ts; k = j + 1 }
+	  if (m) print d, k }' /tmp/trace-t50.txt /tmp/trace-rec.txt > /tmp/trace-d4.txt
+printf "|ts_ns - irq50 entry|:  "; cut -d' ' -f1 /tmp/trace-d4.txt | stats
+# Tuần 7: mỗi bản ghi phải có cạnh riêng (không hai bản ghi chung một cạnh); bản ghi cách
+# mọi cạnh > 50 us là mẫu dư có ts nội suy.
+awk '{ if ($2 == prev) dup++; prev = $2; if ($1 > 50) far++ }
+	END { printf "records sharing an edge %d, farther than 50 us from any edge %d\n", dup, far }' /tmp/trace-d4.txt
