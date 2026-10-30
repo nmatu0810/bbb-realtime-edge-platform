@@ -5,7 +5,105 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
-## Tuần 7 — bàn giao, chưa bắt đầu (ghi 2026-10-30)
+## Tuần 8 — bàn giao, chưa bắt đầu (ghi 2026-10-30)
+
+Đọc mục này trước khi bắt đầu tuần 8 ở session mới. Tuần 1–7 xong; chi tiết tuần 7 ở mục ngay dưới. Ghi chú kiến thức tuần 7: `~/workspace/VKU/DoAn/week7-knowledge-summary.md`. Hạn nộp 2026-11-25.
+
+**Hệ thống đang chạy (sau tuần 7)**
+- Thẻ vẫn là ảnh tuần 4 (`rootfs-20261023085915.wic`), nhưng `/boot` đã sửa tay: `overlays/mpu6050.dtbo` = bản 400 kHz (`51b9e80e…`, bản 100 kHz giữ ở `mpu6050-100k.dtbo`), `zImage-nonrt` (`181dcc6d…`), `extlinux/extlinux.conf` có hai nhãn `Yocto` (RT debug) và `NonRT`, `default Yocto` (bản gốc ở `extlinux.conf.rt`). Rootfs có thêm `/lib/modules/6.12.47-yocto-standard` (7 module như ảnh RT + `depmod`). Đổi kernel: `sed -i 's/^default .*/default NonRT/' /boot/extlinux/extlinux.conf; sync; reboot` (phải hỏi Tus trước khi reboot)
+- Đang boot RT debug (`6.12.47-rt6-yocto-preempt-rt-debug`). `/tmp`: `mpu6050.ko` chốt `8c1f95cf…` (đang nạp), app, strace, script. Sau boot: `scripts/bo-setup.sh` (chép app/strace/script, nạp ko)
+- `build-clean/conf/local.conf` về như template (RT debug). Module RT debug trong sstate: `packages-split` không có `.ko` khi bitbake lấy từ setscene, dùng `KO=~/projectb-baseline/rt-debug-20261030/mpu6050-final.ko scripts/ko-push.sh` hoặc `bitbake -C compile mpu6050-mod`
+- Mốc mới: `~/projectb-baseline/rt-debug-20261030/` (wic, zImage `a9872bda…`, dtb, modules, manifest, kernel.config, dtbo 100k/400k, `mpu6050.ko` trước khi có chờ 60 µs, `mpu6050-final.ko` `8c1f95cf…`), `~/projectb-baseline/nonrt-20261030/` (wic `rootfs-20261030031535`, zImage `181dcc6d…`, `nonrt-mods.tgz` 7 module, kernel.config, `mpu6050-final.ko` `92f38033…`). Cả hai có `SHA256SUMS`
+- Chưa commit gì của tuần 7 (chờ Tus)
+
+**Vòng sửa–thử (tuần 7 thêm script)**
+- Build như tuần 6. Chép + nạp: `scripts/ko-push.sh` (tự lấy hậu tố từ `uname -r` trên bo, so hash). Sau boot: `scripts/bo-setup.sh`
+- Bộ kiểm: như tuần 6 + `mpu-check.sh one <hz> [s]`, `rec <hz> <n>` (ra `/tmp/rec.bin`, `/tmp/rec.txt`), `oflow <ms> [reset]`. Phân tích trên laptop: `scripts/mpu-ts.py rec.bin <chu kỳ ms>` (khoảng ts, khung lệch byte), `scripts/la-run.sh <hz> <n> <tên> [12m] [24m]` (ghi + chụp LA + `la-fifo.py`), `scripts/mpu-sched.sh` (ai giữ CPU khi cạnh trễ, trên bo)
+- debugfs `/sys/kernel/debug/mpu6050/`: anchored, unanchored, extra, fifo_reset, misaligned, settle, batch. Tham số module chỉ để thử: `batch`, `oflow_reset`, `stall_ms`
+- Lệnh nền trên bo phải `nohup … > /dev/null 2>&1 &`; chờ bằng một lệnh nền phía laptop
+
+**Tuần 8 theo kế hoạch (ROADMAP)**: đường lỗi (I2C lỗi, unbind khi stream), module vào ảnh, tài liệu kiến trúc, ảnh LA, log, diễn tập demo, tag `v1.0-chuyennganh`. Mốc: thẻ ghi mới, driver tự nạp, test chạy không thao tác tay.
+
+**Điểm cần quyết ở đầu tuần 8 (phân tích rồi khuyến nghị)**
+- Kernel trong ảnh nộp: RT không debug, non-RT, hay cả hai nhãn extlinux như bo hiện tại. Lô và khoảng chờ được chỉnh trên RT debug và non-RT; RT không debug chưa đo (hằng số `MPU6050_READ_START_NS` 450 µs đo trên RT debug). Nếu chọn RT không debug phải chạy lại sweep 1000 Hz + `misaligned`
+- Đưa overlay 400 kHz và các nhãn extlinux vào layer (hiện chỉ sửa tay trên thẻ). `zImage-nonrt` trong wic thì cần một recipe/wks chép thêm kernel thứ hai, hoặc bỏ
+- Đường lỗi I2C: bus hỏng hẳn (rút dây SDA/SCL, chip mất nguồn): thread hiện giữ cạnh khi đọc count lỗi, reset khi đọc khung lỗi, `reset_pending` khi reset lỗi. Phải kiểm: không treo, log có giới hạn tốc độ, `dropped` tăng đúng, cắm lại thì tự hồi, ghi sysfs lúc hỏng. Treo `omap_i2c` 1 s (`OMAP_I2C_TIMEOUT`) làm `disable_irq` trong store chờ theo
+- Unbind khi còn fd mở: kref (tồn từ tuần 5)
+- Tham số thử (`batch`, `oflow_reset`, `stall_ms`) và debugfs: giữ trong bản nộp (ghi rõ là để thử) hay bỏ/ẩn sau `#ifdef`
+- Khung hỏng lọt ra ở 1000 Hz trên RT debug (4–8 trên 30000, lô bị trễ sang lúc chip ghi): kiểm temp/|a| trong driver là heuristic; có thể đọc lại count sau lô để phát hiện sớm hơn (thêm một giao dịch). Hoặc ghi là giới hạn, tốc độ cam kết 500 Hz
+- Test không thao tác tay: unit systemd chạy selftest lúc boot hay script demo; app `-t` đã có mã thoát = số FAIL
+
+**Giới hạn đã biết, mang sang**
+- 1000 Hz trên RT debug: ~0.03% `dropped`, 2–4 lần `misaligned`/30 s, vài khung hỏng lọt trước khi phát hiện. Non-RT 1000 Hz sạch (30000/30000). Tốc độ cam kết cho mốc `dropped` = 0: 500 Hz (sạch trên cả hai kernel)
+- RT: cạnh INT tới nửa trên trễ tới vài ms khi một kworker giữ khóa BH (thread `irq/26` ở `D`, kworker được nâng prio 49). Không mất mẫu (FIFO giữ), ts của cạnh đó trễ: `load 1800` khoảng ts lớn nhất 26.2 ms trên RT debug, 10.6 ms trên non-RT
+- Chip NACK byte thanh ghi nếu bị đọc < ~50 µs sau cạnh INT (trong xung). Driver chờ tới 60 µs sau cạnh (ước theo ts, trừ độ trễ ts tối thiểu 40 µs trên RT). Có thể đây là gốc lỗi 1000 Hz của tuần 6
+- San bằng `.config` RT/non-RT dời sang GĐ2 (ROADMAP)
+- Còn từ tuần 5–6: unbind khi còn fd mở; `dropped` gộp nhiều nguồn; kernel debug chậm lần đầu mỗi đường khóa
+
+**Dữ kiện chỉ người làm có**: kernel nào sẽ chạy trong buổi demo (nếu giảng viên yêu cầu RT thì chọn RT không debug).
+
+**Bẫy mới**
+- Đổi `PREFERRED_PROVIDER` qua lại hai lần trong một ngày: mỗi lần kernel kia bị gỡ khỏi work và phải build lại thật (không chỉ setscene), ~10–15 phút mỗi lần ở 3 luồng
+- Module lấy từ sstate thì `packages-split` rỗng (xem trên)
+- `ko-push.sh` trên non-RT: không có `/proc/lockdep_stats`, grep trả 1 (đã thêm `; true`)
+- Tác vụ nền phía công cụ (lệnh bị đẩy ra nền vì quá 10 phút) phải dừng bằng chính công cụ, `kill %1` không với tới; nó vẫn mở `/dev/mpu6050` làm `rmmod` báo "in use"
+- Busybox không có `pkill`, `head -N` (dùng `head -n N`)
+- zsh không tách `$cfg` thành từ: `set -- $cfg` không chạy, dùng `${cfg%%:*}`
+
+---
+
+## Tuần 7 — FIFO, đọc theo lô, 400 kHz, non-RT (2026-10-30) — XONG 2026-10-30
+
+Mốc kiểm tuần 7 đạt: `dropped` = 0 ở tốc độ tối đa đã chọn (500 Hz, 60 s, cả hai kernel); bảo toàn Δirq = bản ghi + Δ`dropped` (+ mẫu dư); tràn cố ý → `dropped` tăng đúng số mẫu mất (khớp khoảng ts), FIFO reset, tự hồi; thí nghiệm không reset 4/4 không lệch khung; ts khớp cạnh INT (ftrace + LA), mẫu dư lúc start có ts lùi đúng chu kỳ; hồi quy (selftest, `mpu-check.sh`, `mpu-stress.sh`, `load 1800`, `shake`) đạt trên RT debug và non-RT; lockdep 1 sau mọi đợt trên RT debug. Quyết: I2C 400 kHz trong overlay. Lệch: 1000 Hz trên RT debug còn ~0.03% mất (giới hạn ở trên).
+
+**Thiết kế chốt (sửa từ bản cuối session tuần 6)**
+- Nửa trên giữ nguyên ý: ghi ts từng cạnh vào kfifo `edges` (128), đánh thức thread khi số cạnh chưa chụp (`len − inflight`) ≥ `batch`. Sửa: trước đó đếm cả cạnh đang xử lý, thread chạy lại ngay sau lô lúc cạnh mới nhất đã cũ, 977/1011 lô không neo được ở 1000 Hz
+- Thread: chụp q cạnh; chờ bận tới 60 µs sau cạnh mới nhất (trừ 40 µs trên RT); đọc count; count % 8 ≠ 0 → reset; count = 512 → reset; neo (`now − cạnh + 300 µs < chu kỳ` và khoảng cạnh cuối ±300 µs) → n < q: q − n mất, n > q: mẫu không cạnh; không neo → ghép từ cũ nhất, trừ khi cửa sổ chốt < 1 chu kỳ và dư ≥ 2 (n − q − 1 khung chắc chắn không cạnh); đọc n khung một giao dịch; gán ts (`mpu6050_frame_ts`)
+- ts mẫu không cạnh: sau start/reset lùi theo chu kỳ danh định; đang chạy thì đặt vào khoảng giữa hai cạnh còn dư thời gian nhiều nhất, chia đều
+- `batch` = min(~10 ms, số khung đọc kịp trước mẫu kế) với khung = 72 bit / `clock-frequency` adapter, `chu kỳ − 450 − 150 µs`. 400 kHz: 1000 Hz → 2, 500 → 5, 333 → 4, ≤ 200 → ~10 ms
+- Reset FIFO: `FIFO_EN` 0 → `USER_CTRL` `FIFO_RST` → `USER_CTRL` `FIFO_EN` → `FIFO_EN` 0x88 (như mainline). Lỗi bus giữa chừng → `reset_pending`, lô sau làm lại
+- Đổi so với bàn giao: fifo_buf chặn theo `fifo_size` (count rác/không reset từng có thể ghi tràn bộ đệm 1 KB); thêm `stall_ms`, debugfs. ABI, sysfs, nghĩa `dropped`, thứ tự khóa không đổi; thread vẫn không lấy khóa nào
+- `.ko` chốt: RT debug `8c1f95cf…` (22988 B), non-RT `92f38033…` (20748 B). dtbo 400 kHz `51b9e80e…`
+
+**Bước 1: 100 Hz, 100 kHz (RT debug)**
+- 10 s: irq +1001 = 1000 bản ghi + dư 1, `dropped` 0. 3000 bản ghi: khoảng ts trung vị 9.9904 ms (LA tuần 6: 9.9906), 100.095/s, không ts nào không tăng
+- ftrace 1000 bản ghi: 0 chung cạnh, |ts − irq50| 2–5 µs, 4 sự kiện mỗi mẫu (26, 50, đọc count, đọc khung). LA 5 s (`fifo100`): count = 8 cả 501 lần, 500/500 khung trùng bản ghi, ts − cạnh ±83 µs
+
+**Bước 2: tràn cố ý (`mpu-check.sh oflow`, 100 Hz)**
+- Có reset: chặn 1000 ms → khoảng ts 1068.8 ms = 107 chu kỳ, `dropped` +106; 2000 ms (hàng đợi cạnh cũng đầy) → 207 chu kỳ, +206. Dư 0
+- Không reset: 700/1000/1230 ms ở 100 kHz → +13/+38/+67 = (14/39/68 chu kỳ) − 1; 1000 ms ở 400 kHz → +38..+42. Temp 34.05–34.11 °C, |a| 1.005–1.013 g suốt: không lệch khung 4/4. Lặp lại ở 400 kHz và non-RT với reset mới: như trên
+- Mẫu dư lúc start (500 Hz, 60 lần mở): 37/60 có `extra` 1 (một lần 3), đúng những lần đó khoảng đầu 2.000000 ms
+
+**Bước 3: 1000 Hz ở 100 kHz (`fifo1k-100k*.sr`)**
+- Đầu tiên 627/s + 316 dropped/s, 977/1011 lô không neo, NACK + timeout như tuần 6. Sau sửa `inflight`: 987/s, 2.1 dropped/s, 4 NACK/20 s, hết treo 1 s
+- Vẫn hỏng: đọc count ≥ 0.45 ms nên 85% lô không neo; bus bận ~77%. Thêm luật dư ≥ 2: tốc độ theo ts về 1000.915/s nhưng khoảng ts méo, 255 cạnh dồn/10 s. Kết luận: cần 400 kHz
+
+**Bước 4: 400 kHz (overlay, reboot 1)**
+- `clock-frequency = <400000>` trong `&i2c2` của overlay. `/sys/bus/i2c/devices/i2c-2/of_node/clock-frequency` = 0x61a80. Đọc count ~0.22 ms, 99% lô neo
+- Phát hiện khung hỏng ở 1000 Hz (cả ở 100 kHz trước đó): temp −77..+117 °C, khung `ffff`. LA (`fifo-misalign-1khz-2026-10-30.sr`): count dư 1..6 byte ở mọi lần đọc khi đã lệch, dữ liệu lệch 2 byte, có lần cạn giữa chừng
+- Tách: DLPF không phải (500 Hz cùng DLPF sạch); `batch=1` 1000 Hz sạch, lần đầu 4998/5000 hỏng từ lúc start (reset cũ khi `FIFO_EN` còn bật). Sửa reset + phát hiện count lẻ: còn 16–21 lần lệch/10 s, count 79/97/139… Lô 1, 2 ở 1000 Hz và lô 5 ở 500 Hz sạch; lô 3..10 ở 1000 Hz và lô 10 ở 500 Hz lệch ~1% số lô. LA: lần đọc khung bắt đầu ~0.45 ms sau cạnh → lệch xảy ra khi lần đọc kéo qua lúc chip ghi mẫu kế
+- Thử ngân sách động (đo thời gian/byte từ lần đọc count) sai: gộp chi phí giao dịch cố định, ra 0 khung, FIFO tràn liên tục; và reset lỗi giữa chừng để `FIFO_EN` = 0, treo âm thầm. Thay bằng `batch` tĩnh theo tốc độ bus + `reset_pending`
+- Kết quả RT debug: 1000 Hz lô 2, 30000 bản ghi ×2: `misaligned` 2–4, `dropped` 7–12, 4–8 khung hỏng lọt. 500 Hz 60 s: `dropped` 0, 0 khung hỏng, 500.489/s theo ts
+
+**Bước 5: cạnh trễ trên RT (`scripts/mpu-sched.sh`)**
+- 1000 Hz: irq26 → irq50 max 3.8 ms, khoảng irq 50 tới 4–7 ms vài lần/s, không trùng NACK. `sched_switch`: `irq/26` dậy rồi `D`, `kworker/0:7` prio 49 chạy ~6 ms. Work item đều < 1.1 ms (`workqueue_execute_*`) → nhiều khả năng softirq chạy trong kworker khi `local_bh_enable`. Lúc khác không thấy: không đều
+
+**Bước 6: hồi quy RT debug, 400 kHz**: selftest 13/13; `dup` 0/3000; `sweep` 100–500 Hz `dropped` 0, CPU rảnh 87–93%, 1000 Hz 0.3/s, rảnh 60–63%; `cfg` (101 → 202/s, trả về 100 Hz ±2 g); `strace`; `restart`; `gap` lúc stream ~5.0 ms (tuần 6 6–10 ms); ftrace + LA 100 Hz: 0 chung cạnh, count = 8 ×200, ts − cạnh −59..+52 µs; `oc` 20/20 `EBUSY`; `sysfs` 49–50 vòng 0 lỗi; `mod` 20 vòng, slab không đổi; `load 1800`: 180650 bản ghi, `dropped` 0, irq +180648 + 2 mẫu dư, 101–102/s, khoảng ts lớn nhất 26.2 ms (82/1788 giây > 10.5 ms); `shake`: `ay` −1.09..+0.72, `ax` −1.16..+0.37 g, `dropped` 0. Lockdep 1 sau mọi đợt
+
+**Bước 7: non-RT (`6.12.47-yocto-standard`, `CONFIG_PREEMPT`, không debug; nhãn `NonRT`, reboot 2–5)**
+- Build lại kernel thật (chữ ký khác 10-22), `zImage` `181dcc6d…`, dtb `cd9c1103…`. Rootfs 52 MB trống không chứa nổi `modules-*.tgz` (136 MB giải nén): chỉ chép 7 module ảnh có + `depmod`
+- Thử âm vermagic: `.ko` RT debug → `Invalid module format`, `should be '6.12.47-yocto-standard …'`
+- Không có `irq/26` (ngắt GPIO trong hardirq). Lần đầu: 100–500 Hz sạch, CPU rảnh 97–98%, nhưng NACK `-121` khi đọc count: 106/10 s ở 1000 Hz, 7/10 s ở 200 Hz. LA (`int-nack-nonrt-2026-10-30.sr`): cạnh → START đọc count 26 µs (RT debug ~160), NACK ở 21 µs đúng byte `0x72`. Chờ tới 60 µs sau cạnh: NACK 0 ở 200 và 1000 Hz (30 s mỗi mức)
+- Bản chờ đầu (`usleep_range`, rồi `ndelay` 60 µs theo ts) làm RT debug xấu đi: `misaligned` 17–36/30 s, A/B với `.ko` cũ cùng lần boot 0–2; debugfs `settle` 14872/14967 lô. ts trên RT trễ cạnh ≥ 40 µs nên chờ theo ts là thừa; trừ 40 µs khi `CONFIG_PREEMPT_RT`: RT `settle` 0, `misaligned` 2/30 s
+- Non-RT với `.ko` chốt: selftest 13/13; `sweep` 100–1000 Hz `dropped` 0, NACK 0, rảnh 95–96% (1000 Hz 88%); 1000 Hz 30000: irq = bản ghi = 30000, `dropped` 0, khoảng ts 0.953–1.047 ms, 0 khung hỏng; tràn +107, dư 0; `sysfs` 96 vòng `dropped` 0. Với `.ko` trước đó (khác ở `usleep_range`): `dup`, `cfg`, `strace`, `restart`, `gap` (1.3 ms không mở, 2.6 ms stream), `oc`, `mod`, tràn không reset 4/4, `load 1800` (180603 = irq, `dropped` 0, khoảng lớn nhất 10.6 ms, 5/1788 giây > 10.5 ms), `shake` đều đạt
+
+**Script mới/sửa**: `ko-push.sh`, `bo-setup.sh`, `la-run.sh`, `la-fifo.py`, `mpu-ts.py`, `mpu-sched.sh`; `mpu-check.sh` thêm `one`, `rec`, `oflow`, bộ đếm debugfs; `mpu-trace.sh` đếm bản ghi chung cạnh. Ảnh LA: `docs/fifo-100hz-400k-2026-10-30.sr` (+ `.bin` bản ghi cùng lần), `docs/fifo-misalign-1khz-2026-10-30.sr`, `docs/int-nack-nonrt-2026-10-30.sr`.
+
+**Commit**: chưa (chờ Tus).
+
+---
+
+## Tuần 7 — bàn giao (ghi 2026-10-30)
 
 Đọc mục này trước khi bắt đầu tuần 7 ở session mới. Tuần 1–6 xong; chi tiết tuần 6 ở mục ngay dưới. Ghi chú kiến thức tuần 6: `~/workspace/VKU/DoAn/week6-knowledge-summary.md`. Hạn nộp đồ án chuyên ngành 2026-11-25: giữ cả ngắt lẫn FIFO, không cắt.
 
@@ -15,13 +113,36 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 - Driver: nguồn dữ liệu là ngắt DATA_RDY. `devm_request_threaded_irq` (`IRQF_ONESHOT | IRQF_NO_AUTOEN`, `IRQ_DISABLE_UNLAZY`), thread `irq/50-mpu6050` `SCHED_FIFO` 50. Nửa trên lấy `ts_ns` và đếm mẫu mất bằng `atomic64_xchg(irq_ts)`, thread đọc burst 8 byte. Start = ghi `INT_ENABLE` + `enable_irq`; stop = `disable_irq` + tắt `INT_ENABLE`. `INT_PIN_CFG` 0x00. Phía đọc không đổi
 - Chia việc mới (2026-10-29): Claude tự build, chép, chạy lệnh trên bo qua ssh, chụp LA bằng `sigrok-cli`; Tus làm phần cứng, sudo, ghi thẻ, reboot, commit. Xem CLAUDE.md
 
+**Vòng sửa–thử tự động (Claude chạy hết, tuần 6 đã dùng)**
+- Build: `./scripts/yocto.sh bitbake mpu6050-mod 2>&1 | grep -E 'WARNING|ERROR|Tasks Summary'`, rồi `grep -ciE 'warning|error' …/mpu6050-mod/0.1/temp/log.do_compile` phải 0. Trước lần build đầu mỗi session kiểm `docker ps` + `docker exec <container> ps` và `poky/build-clean/bitbake.lock` (không có bitbake khác thì build)
+- `KO=poky/build-clean/tmp/work/beaglebone_yocto-poky-linux-gnueabi/mpu6050-mod/0.1/packages-split/kernel-module-mpu6050-6.12.47-rt6-yocto-preempt-rt-debug/usr/lib/modules/6.12.47-rt6-yocto-preempt-rt-debug/updates/mpu6050.ko`
+- Lệnh bo: `scripts/bo.sh 'lệnh'`; chép: `scripts/bo.sh 'cat > /tmp/mpu6050.ko && sha256sum /tmp/mpu6050.ko' < "$KO"`, so với `sha256sum "$KO"`. Script: `scripts/bo.sh 'cat > /tmp/mpu-check.sh' < scripts/mpu-check.sh` (tương tự `mpu-stress.sh`, `mpu-trace.sh`)
+- Bo: `rmmod mpu6050; insmod /tmp/mpu6050.ko; dmesg -c`; sau mỗi đợt `grep debug_locks /proc/lockdep_stats` (phải 1)
+- Bộ kiểm: `/tmp/mpu6050-test -t`, `sh /tmp/mpu-check.sh irq|dup|sweep|cfg|strace|restart|gap|shake`, `sh /tmp/mpu-stress.sh oc|sysfs|load 1800|mod` (load dài: `nohup … > /tmp/x.txt &`, chờ bằng một lệnh nền `sleep N; scripts/bo.sh 'cat /tmp/x.txt'`), `sh /tmp/mpu-trace.sh 1000`
+- LA: D0 SCL, D1 SDA, D2 INT (que đang kẹp ở chân INT của module). `sigrok-cli -d fx2lafw --config samplerate=2m --samples 1m -o x.sr` (PulseView phải đóng). Phân tích: `scripts/i2c-decode.py`, `scripts/la-pulses.py x.sr 0 1 2`, `scripts/la-int2start.py`. Ở 400 kHz 2 MHz không đủ (5 mẫu/bit): dùng 12m hoặc 24m, ít mẫu hơn
+- Bo không lên ssh (`No route to host`, gặp 2026-10-30 sau tuần 6): nhờ Tus kiểm nguồn/dây mạng; bo boot lại thì `/tmp` mất, chép lại ko, app (`$APP`, `3ad98c68…`), strace, script
+
+**Đã bắt đầu ở cuối session tuần 6 (2026-10-30), chưa thử trên bo, chưa commit**
+- Đã đọc FIFO trong Register Map: `FIFO_EN` (0x23) bit 7 TEMP + bit 3 ACCEL → mỗi mẫu 8 byte ax ay az temp (thứ tự số thanh ghi, giống burst); `USER_CTRL` (0x6A) bit 6 `FIFO_EN`, bit 2 `FIFO_RST` (tự xóa); `CONFIG` bit 6 `FIFO_MODE` (0 = đầy thì ghi đè mẫu cũ nhất, 1 = ngừng ghi); đọc `FIFO_COUNT_H` (0x72) chốt cả H và L; đọc `FIFO_R_W` (0x74) khi rỗng trả lại byte cũ → luôn đọc count trước
+- `driver/mpu6050/mpu6050.c` trong cây làm việc đã viết lại nguồn dữ liệu (build sạch, `.ko` `0328b42d…`). Quyết định, theo khuyến nghị, chưa đo:
+  - Vẫn ngắt DATA_RDY mỗi mẫu. Nửa trên đẩy `ktime_get_ns()` của từng cạnh vào kfifo `edges` (128 × u64, một người ghi một người đọc), chỉ `IRQ_WAKE_THREAD` khi `kfifo_len(edges) >= batch`; `batch` = `DIV_ROUND_UP(hz, 100)` (~10 ms/lô: 1 mẫu ở 100 Hz, 10 ở 1000 Hz). `edges` đầy → `dropped`++ và `edges_lost`++
+  - Thread: chụp q ts (`kfifo_out_peek`), đọc `FIFO_COUNT` (n mẫu), rồi một `i2c_transfer` đọc n × 8 byte từ 0x74. Mỗi mẫu mang ts của chính cạnh của nó (không nội suy). Neo mẫu mới nhất của FIFO vào cạnh mới nhất khi `now - newest + 300 µs < chu kỳ` và khoảng cách cạnh cuối với cạnh trước = chu kỳ ± 300 µs (`mpu6050_anchored`): n < q → q − n cạnh cũ nhất là mẫu mất (`dropped`); n > q → mẫu dư chưa có cạnh (vào FIFO trước khi ngắt mở lúc start), ts lùi từng chu kỳ, bỏ nếu `edges_lost`. Không neo được thì ghép từ cũ nhất, phần lệch để lô sau
+  - FIFO đầy (n × 8 ≥ `fifo_size`): reset (`USER_CTRL` = `FIFO_EN | FIFO_RST`), `dropped` += q, bỏ q cạnh. Đọc FIFO lỗi: cũng reset và tính mất cả lô
+  - `FIFO_MODE` = 0 (mẫu mất là mẫu cũ, neo từ mẫu mới vẫn đúng). Start: `FIFO_EN` = 0x88 (đọc lại) → `USER_CTRL` = 0x44 → `INT_ENABLE` → `enable_irq` (mẫu vào FIFO trước khi cạnh được đếm thành mẫu dư, không thành mất). Stop: `disable_irq` → `INT_ENABLE` 0 → `USER_CTRL` 0 → `FIFO_EN` 0
+  - Tham số module chỉ để thử (không phải giao diện): `batch` (0 = tự động, đọc lúc open), `oflow_reset` (mặc định 1; 0 để thí nghiệm không reset, kiểm giả thuyết 512 chia hết cho 8 bằng trường temp và |a| sau tràn)
+  - ABI uapi, tên sysfs, ý nghĩa `dropped`, thứ tự khóa không đổi; thread vẫn không lấy khóa nào
+- Session mới: đọc lại diff (`git diff driver/`), soát thiết kế trên trước khi thử. Chỗ đáng nghi nhất: lề neo 300 µs so với độ trễ cạnh → nửa trên dưới tải (tuần 6 thấy `ts_ns` trễ tới ~6.5 ms), và mẫu dư lúc start ở 1000 Hz
+- Thứ tự thử đã định: hồi quy + bảo toàn (Δirq = bản ghi + Δ`dropped`) → khoảng cách `ts` đều theo chu kỳ, `ts` khớp cạnh (ftrace + LA) → tràn cố ý (`batch=100` > 64 mẫu, có/không reset) → sweep 100 kHz kể cả 1000 Hz → 400 kHz (overlay, reboot: hỏi Tus) → load 1800, oc/sysfs/mod, shake → non-RT (lưu mốc trước, hỏi Tus)
+- Bo không lên mạng lúc ghi mục này (ARP `FAILED` cho 192.168.50.182): nhờ Tus kiểm nguồn/mạng; sau boot `/tmp` trống, chép lại ko, app, strace, script
+
 **Tuần 7 theo kế hoạch (ROADMAP)**: FIFO của chip (`ACCEL` + `TEMP`, 8 byte/mẫu), đọc theo lô, `ts_ns` nội suy lùi, tràn → `dropped` + reset FIFO, thí nghiệm tràn có/không reset. Đo thời gian I2C 100 kHz, quyết 400 kHz. Build non-RT + san bằng `.config`. Mốc: `dropped` = 0 ở tốc độ tối đa đã chọn; tràn cố ý → `dropped` tăng, tự hồi; cả hai kernel qua bộ kiểm.
 
 **Điểm cần quyết ở đầu tuần 7 (phân tích rồi khuyến nghị)**
 - Ngắt nào kích đọc lô: DATA_RDY mỗi mẫu rồi chỉ đọc khi `FIFO_COUNT` ≥ ngưỡng (vẫn 1000 lần đánh thức/s ở 1000 Hz), hay chia nhịp ở driver (đếm cạnh, đọc mỗi N ngắt). Chip không có ngắt watermark
 - Đọc `INT_STATUS` mỗi lô để thấy `FIFO_OFLOW_INT` (cờ dính, chỉ xóa khi đọc 0x3A vì không bật ANYRD), hay suy ra tràn từ `FIFO_COUNT` = 512
 - `ts_ns` nội suy lùi: dùng `ts` của cạnh cuối và chu kỳ thật của chip (đo được 9.9906 ms ở "100 Hz", nhanh 0.09% so với đồng hồ LA), hay chu kỳ danh định
-- 400 kHz: đổi `clock-frequency` của i2c2 trong overlay (dtbo trên FAT, đổi bằng scp + reboot) hay trong dtb gốc
+- 400 kHz: đổi `clock-frequency` của i2c2 trong overlay (dtbo trên FAT, đổi bằng scp + reboot) hay trong dtb gốc. Dtb gốc đặt `clock-frequency = <100000>` cho `&i2c2` (`am335x-bone-common.dtsi:241`), trên bus còn EEPROM cape 0x54–0x57 (`atmel,24c256`). Reboot phải hỏi Tus
+- Non-RT: đổi `PREFERRED_PROVIDER_virtual/kernel` kích `ReachableStamps` gỡ deploy/work của kernel RT (bẫy tuần 4): lưu mốc RT debug hiện tại ra `~/projectb-baseline/` trước. Ghi thẻ hay chép `zImage`/modules lên `/boot` là việc của Tus hoặc phải hỏi
 - Lỗi 1000 Hz (dưới) phải đo lại trong chế độ đọc lô trước khi kết luận gì về nó
 
 **Giới hạn đã biết, mang sang**

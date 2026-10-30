@@ -118,6 +118,14 @@ Ràng buộc đã chốt khi duyệt kế hoạch:
 Cắt nếu trễ, theo thứ tự: LVGL → ioctl còn một lệnh → FIFO theo lô (giữ DATA_RDY từng mẫu, ~100 Hz)
 → test non-RT dời đầu GĐ2. Không cắt: uapi, tên sysfs, ngắt.
 
+Điều chỉnh 2026-10-30 (tuần 7):
+- San bằng `.config` RT/non-RT dời sang đầu GĐ2, cùng đợt benchmark độ trễ RT/non-RT: phải build lại cả hai
+  kernel và đổi kernel RT đang dùng làm mốc, trong khi nó chỉ ảnh hưởng tính công bằng khi so độ trễ, không
+  ảnh hưởng bộ kiểm chức năng của driver. Tuần 7 chạy bộ kiểm trên non-RT không debug chưa san bằng.
+- Tốc độ tối đa cho mốc `dropped` = 0 là 500 Hz. `sample_rate` vẫn nhận 4..1000; 1000 Hz còn mất ~0.03%
+  trên RT debug (chip trượt con trỏ FIFO khi lần đọc lô trễ sang lúc chip ghi mẫu kế, xem PROGRESS tuần 7).
+- I2C2 400 kHz, đặt trong overlay của project.
+
 Ghi nhận cho GĐ2: trên RT `gpio-omap` xin IRQ với cờ 0 (`gpio-omap.c:1077`) nên bị ép thread
 `irq/26-4804c000.gpio`; handler `IRQF_ONESHOT` của driver không bị ép thread (`manage.c:1372`) nhưng
 được gọi từ trong thread đó. `ts_ns` trên RT đã gồm độ trễ đánh thức thread GPIO.
