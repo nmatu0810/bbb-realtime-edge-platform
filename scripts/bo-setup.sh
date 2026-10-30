@@ -6,7 +6,7 @@ APP=$W/cortexa8hf-neon-poky-linux-gnueabi/mpu6050-test/0.1/image/usr/bin/mpu6050
 STR=$W/cortexa8hf-neon-poky-linux-gnueabi/strace/6.12/packages-split/strace/usr/bin/strace
 scripts/bo.sh 'cat > /tmp/mpu6050-test; chmod +x /tmp/mpu6050-test' < "$APP" || exit 1
 scripts/bo.sh 'cat > /tmp/strace; chmod +x /tmp/strace' < "$STR" || exit 1
-for f in mpu-check.sh mpu-stress.sh mpu-trace.sh mpu-sched.sh; do
+for f in mpu-check.sh mpu-stress.sh mpu-trace.sh mpu-sched.sh mpu-fault.sh mpu-lag.sh demo.sh; do
 	scripts/bo.sh "cat > /tmp/$f" < scripts/$f || exit 1
 done
 echo "app/strace laptop: $(sha256sum "$APP" "$STR" | cut -c1-16 | tr '\n' ' ')"
