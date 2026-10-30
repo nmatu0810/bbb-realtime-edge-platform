@@ -1,0 +1,5 @@
+15000+0 records out
+6.12.47-rt6-yocto-preempt-rt, 1000 Hz: 15000 irq26, lost 0
+cạnh -> ts (irq26 -> 50) n 15000  min    7  p1    7  p50   12  p99    15  max    161 us
+cạnh -> đọc count, ACK n  7500  min   71  p1   72  p50   76  p99    81  max    232 us
+cạnh -> đọc count, NACK n 0

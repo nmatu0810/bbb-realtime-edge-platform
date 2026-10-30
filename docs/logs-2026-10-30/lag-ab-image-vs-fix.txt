@@ -1,0 +1,23 @@
+== A: ko trong ảnh
+485cc92e94dcd010
+cạnh -> ts (irq26 -> 50) n 29999  min    6  p1    7  p50   11  p99    18  max    171 us
+cạnh -> đọc count, ACK n  5984  min   31  p1   33  p50   37  p99    55  max    175 us
+cạnh -> đọc count, NACK n    79  min   32  p1   32  p50   36  p99    37  max     37 us
+  500 Hz: misaligned +0 fifo_reset +0 dropped +0
+cạnh -> ts (irq26 -> 50) n 30009  min    7  p1    7  p50   12  p99    22  max    232 us
+cạnh -> đọc count, ACK n 14330  min   31  p1   32  p50   36  p99    72  max    274 us
+cạnh -> đọc count, NACK n  1349  min   32  p1   34  p50   36  p99    37  max     37 us
+  1000 Hz: misaligned +4 fifo_reset +4 dropped +8
+== B: ko mới
+ko a38b5ad7bb82b713 (laptop) a38b5ad7bb82b713 (bo), 24584 bytes
+mpu6050 2-0068: MPU-6500 (WHO_AM_I 0x70), irq 50, /dev/mpu6050 minor 124, 100 Hz, +-2 g, bus 400000 Hz
+cạnh -> ts (irq26 -> 50) n     5  min   33  p1   33  p50   63  p99    78  max     78 us
+cạnh -> đọc count, ACK n     1  min  163  p1  163  p50  163  p99   163  max    163 us
+cạnh -> đọc count, NACK n 0
+  500 Hz: misaligned +0 fifo_reset +0 dropped +0
+cạnh -> ts (irq26 -> 50) n    12  min   19  p1   19  p50   38  p99    55  max     55 us
+cạnh -> đọc count, ACK n     6  min  117  p1  117  p50  128  p99   136  max    136 us
+cạnh -> đọc count, NACK n 0
+  1000 Hz: misaligned +0 fifo_reset +0 dropped +0
+
+[exited with code 0]

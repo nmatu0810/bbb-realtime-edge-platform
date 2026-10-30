@@ -1,0 +1,11 @@
+# load 600 (scripts/mpu-stress.sh load 600), 2026-10-30 ~09:25-09:35, kernel 6.12.47-rt6-yocto-preempt-rt
+# (không debug), module a38b5ad7 nạp từ /tmp, 100 Hz. Tóm tắt chép từ output lúc đó; file gốc
+# /tmp/load600.txt nằm trên thẻ trước lần ghi ảnh rootfs-20261030092552, đã mất.
+stress-ng: metrc: [1117] vm              1067042    600.94    175.86     16.06      1775.63        5559.86
+stress-ng: info:  [1117] passed: 3: cpu (1) io (1) vm (1)
+stress-ng: info:  [1117] failed: 0
+stress-ng: info:  [1117] successful run completed in 10 mins
+599 lines, rate 101..102/s, worst gap 10.2 ms, 0 s with gap > 20 ms
+total 60568 records, dropped +0
+irq 50: +60568
+dmesg WARNING/BUG/error/failed/lost: 0

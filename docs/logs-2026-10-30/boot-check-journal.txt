@@ -1,0 +1,76 @@
+[   18.781012] beaglebone-yocto systemd[1]: Starting MPU6050 self-test at boot (project B)...
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: kernel 6.12.47-rt6-yocto-preempt-rt, 19.24 s sau boot
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: driver mpu6050, /dev/mpu6050 crw------- root:root
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  read right after open -> EAGAIN: Resource temporarily unavailable
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  second open -> EBUSY: Device or resource busy
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  GET_CONFIG consistent: ret 0
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: chip 0x70, 100 Hz, +-2 g (16384 LSB/g), accel DLPF 41 Hz
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  GET_STATS: ret 0, dropped 0
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  unknown ioctl -> ENOTTY: Inappropriate ioctl for device
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  lseek -> ESPIPE: Illegal seek
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  write on O_RDONLY fd -> EBADF (VFS): Bad file descriptor
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  poll -> POLLIN: ret 1 after 2.4 ms
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  read 8 bytes -> EINVAL: Invalid argument
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  read 40 bytes -> 32 (whole records only): returned 32
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  ts_ns monotonic, CLOCK_MONOTONIC: age 22.2 ms
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  FLUSH then read -> EAGAIN (or 1 record race): ioctl 0, read -1 Resource temporarily unavailable
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: PASS  reopen after close
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: 0 failed
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: selftest: 0 FAIL
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]:   101/s [100 Hz +-2g]  ax -0.929 ay -0.006 az -0.417 g  33.63 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: total 1000 records, dropped +0
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: stream: 1000/1000 bản ghi, dropped +0
+[   29.661724] beaglebone-yocto mpu6050-boot-check[303]: KẾT QUẢ: ĐẠT
+[   29.675118] beaglebone-yocto systemd[1]: Finished MPU6050 self-test at boot (project B).
+[ 1407.616991] beaglebone-yocto systemd[1]: mpu6050-boot-check.service: Deactivated successfully.
+[ 1407.619055] beaglebone-yocto systemd[1]: Stopped MPU6050 self-test at boot (project B).
+[ 1407.943903] beaglebone-yocto systemd[1]: Starting MPU6050 self-test at boot (project B)...
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: kernel 6.12.47-rt6-yocto-preempt-rt, 1408.10 s sau boot
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: driver mpu6050, /dev/mpu6050 crw------- root:root
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  read right after open -> EAGAIN: Resource temporarily unavailable
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  second open -> EBUSY: Device or resource busy
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  GET_CONFIG consistent: ret 0
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: chip 0x70, 100 Hz, +-2 g (16384 LSB/g), accel DLPF 41 Hz
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  GET_STATS: ret 0, dropped 0
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  unknown ioctl -> ENOTTY: Inappropriate ioctl for device
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  lseek -> ESPIPE: Illegal seek
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  write on O_RDONLY fd -> EBADF (VFS): Bad file descriptor
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  poll -> POLLIN: ret 1 after 5.1 ms
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  read 8 bytes -> EINVAL: Invalid argument
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  read 40 bytes -> 32 (whole records only): returned 32
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  ts_ns monotonic, CLOCK_MONOTONIC: age 20.9 ms
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  FLUSH then read -> EAGAIN (or 1 record race): ioctl 0, read -1 Resource temporarily unavailable
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: PASS  reopen after close
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: 0 failed
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: selftest: 0 FAIL
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]:   101/s [100 Hz +-2g]  ax -0.914 ay -0.003 az -0.413 g  33.86 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: total 1000 records, dropped +0
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: stream: 1000/1000 bản ghi, dropped +0
+[ 1418.293914] beaglebone-yocto mpu6050-boot-check[405]: KẾT QUẢ: ĐẠT
+[ 1418.308730] beaglebone-yocto systemd[1]: Finished MPU6050 self-test at boot (project B).
+[ 1994.934034] beaglebone-yocto systemd[1]: mpu6050-boot-check.service: Deactivated successfully.
+[ 1994.939143] beaglebone-yocto systemd[1]: Stopped MPU6050 self-test at boot (project B).
+[ 1995.262886] beaglebone-yocto systemd[1]: Starting MPU6050 self-test at boot (project B)...
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: kernel 6.12.47-rt6-yocto-preempt-rt, 1995.43 s sau boot
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: driver mpu6050, /dev/mpu6050 crw------- root:root
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  read right after open -> EAGAIN: Resource temporarily unavailable
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  second open -> EBUSY: Device or resource busy
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  GET_CONFIG consistent: ret 0
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: chip 0x70, 100 Hz, +-2 g (16384 LSB/g), accel DLPF 41 Hz
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  GET_STATS: ret 0, dropped 0
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  unknown ioctl -> ENOTTY: Inappropriate ioctl for device
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  lseek -> ESPIPE: Illegal seek
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  write on O_RDONLY fd -> EBADF (VFS): Bad file descriptor
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  poll -> POLLIN: ret 1 after 2.6 ms
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  read 8 bytes -> EINVAL: Invalid argument
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  read 40 bytes -> 32 (whole records only): returned 32
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  ts_ns monotonic, CLOCK_MONOTONIC: age 21.4 ms
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  FLUSH then read -> EAGAIN (or 1 record race): ioctl 0, read -1 Resource temporarily unavailable
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: PASS  reopen after close
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: 0 failed
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: selftest: 0 FAIL
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]:   101/s [100 Hz +-2g]  ax -0.945 ay +0.071 az -0.379 g  34.09 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: total 1000 records, dropped +0
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: stream: 1000/1000 bản ghi, dropped +0
+[ 2005.683802] beaglebone-yocto mpu6050-boot-check[614]: KẾT QUẢ: ĐẠT
+[ 2005.697391] beaglebone-yocto systemd[1]: Finished MPU6050 self-test at boot (project B).

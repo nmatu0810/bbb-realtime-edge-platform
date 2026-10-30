@@ -5,7 +5,102 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
-## Tuần 8 — bàn giao, chưa bắt đầu (ghi 2026-10-30)
+## GĐ2 — bàn giao, chưa bắt đầu (ghi 2026-10-30)
+
+Đọc mục này trước khi bắt đầu GĐ2 (tuần 9) ở session mới. GĐ1 xong trừ tag `v1.0-chuyennganh` (chờ Tus bảo). Chi tiết tuần 8 ở mục ngay dưới; tóm tắt kiến trúc cho báo cáo: `docs/architecture.md`. Ghi chú kiến thức tuần 8: `~/workspace/VKU/DoAn/week8-knowledge-summary.md`. Hạn nộp chuyên ngành 2026-11-25.
+
+**Hệ thống đang chạy (sau tuần 8)**
+- Thẻ ghi ảnh nộp `projectb-image-beaglebone-yocto.rootfs-20261030092552.wic` (mốc `~/projectb-baseline/rt-submit-20261030/`, `SHA256SUMS`): kernel `6.12.47-rt6-yocto-preempt-rt` không debug (zImage `818fb8a7…`, trùng mốc `rt-20261022`), overlay 400 kHz `51b9e80e…`, `mpu6050.ko` `a38b5ad7…` trong `/lib/modules/…/updates/`, `mpu6050-test`, `mpu6050-boot-check`. extlinux một nhãn (`Yocto`) từ layer; không còn nhãn `NonRT`, `zImage-nonrt` (mốc ở `nonrt-20261030/`)
+- Boot: udev tự nạp module theo modalias, `/dev/mpu6050` 0600 root (`90-mpu6050.rules`), unit `mpu6050-boot-check` tự chạy khi thiết bị xuất hiện; `journalctl -u mpu6050-boot-check` kết thúc bằng "KẾT QUẢ: ĐẠT"
+- `/tmp` trên bo có script (`mpu-check`, `mpu-stress`, `mpu-trace`, `mpu-sched`, `mpu-fault`, `mpu-lag`, `demo.sh`), `strace`, `/tmp/mpu6050-test` → `/usr/bin/mpu6050-test`; mất khi reboot. Host key SSH đổi mỗi lần ghi thẻ: Tus chạy `ssh-keygen -R 192.168.50.182`, Claude so fingerprint (`ssh-keyscan | ssh-keygen -lf -`) rồi `StrictHostKeyChecking=accept-new`
+- `build-clean/conf/local.conf` = template, giờ `PROJECTB_KERNEL_DEBUG = "0"` (RT không debug). Sửa driver mà cần lockdep: đặt "1", build lại kernel (sstate có) + module, nạp bằng `KO=` hoặc ghi thẻ `rt-debug-20261030/`
+- Chưa commit gì của tuần 8 (chờ Tus)
+
+**Vòng sửa–thử**: như tuần 7. `scripts/ko-push.sh` vẫn dùng được (module trong ảnh bị thay đến lần boot sau). Thêm `scripts/mpu-fault.sh` (watch/unbind/held), `scripts/mpu-lag.sh` (độ trễ cạnh → ts → đọc count, NACK), `scripts/demo.sh`.
+
+**GĐ2 theo kế hoạch (ROADMAP, spec)**
+- Tuần 9–11: PREEMPT_RT + cyclictest (chế độ Benchmark, 1 core + SCHED_FIFO), jitter và độ trễ IRQ → userspace; benchmark runner (`fork/exec/waitpid`); machine/distro conf riêng; watchdog handoff U-Boot → `omap_wdt` + `RuntimeWatchdogSec`. Đầu tuần 9: san bằng `.config` RT/non-RT (dời từ tuần 7) trước khi so độ trễ
+- Tuần 12–14: `sensord` C++17 (SCHED_FIFO, poll trên `/dev/mpu6050`, SPSC ring, shm + mq, chạy không root), HMI LVGL, AI đơn giản
+- Tuần 15–16: tài liệu tốt nghiệp, OTA trên giấy
+
+**Điểm cần quyết đầu GĐ2 (phân tích rồi khuyến nghị)**
+- Kernel đo benchmark: RT không debug của ảnh nộp và non-RT sau khi san bằng `.config`. Mốc non-RT `nonrt-20261030` chưa san bằng
+- Tách ảnh: `projectb-image` (thiết bị) và `projectb-image-dev` (công cụ, root không mật khẩu) như quyết định tuần 2; `EXTRA_IMAGE_FEATURES` vẫn `empty-root-password allow-root-login`
+- `sensord` không chạy root: thêm user/group (`useradd` class), rule udev `GROUP`, `MODE 0640`
+- `MPU6050_TS_LAG_MIN_NS` là hằng theo cấu hình kernel (RT+lockdep 40 µs, còn lại 0). San bằng `.config` hay đổi kernel thì đo lại bằng `mpu-lag.sh` (NACK phải 0, đọc count ≥ 60 µs sau cạnh)
+- Đo độ trễ IRQ → userspace dùng `ts_ns` (lấy ở nửa trên, trên RT là trong thread `irq/26`): trễ thật so với cạnh phải cộng irq26 → irq50 (6–18 µs, đo bằng ftrace) hoặc đo bằng LA
+- Tham số thử (`batch`, `oflow_reset`, `stall_ms`) và debugfs vẫn trong driver (ghi "test:" trong mô tả); `mpu-check oflow` cần chúng
+
+**Giới hạn mang sang**
+- RT: cạnh INT có lúc trễ vài ms tới nửa trên (khóa BH của kworker), ts của cạnh đó trễ; 1000 Hz trên RT debug còn ~0.03% mất và khung hỏng lọt. RT không debug và non-RT 1000 Hz sạch
+- `dropped` không tính mẫu lúc chip mất nguồn (không có cạnh); khoảng mất chỉ thấy qua ts (Tus duyệt giữ nghĩa này, 2026-10-30)
+- Đổi cấu hình lỗi giữa chừng (bus hỏng) thì stream dừng tới khi watchdog bật lại; mẫu trong lúc dừng không tính `dropped` (như lúc đóng)
+- Ghi sysfs `accel_range`/`sample_rate` trả `EREMOTEIO` lúc bus hỏng nhưng chip có thể đã nhận một nửa cấu hình (driver cố ghi lại cấu hình cũ, cũng lỗi). Có fd mở thì watchdog ghi lại toàn bộ khi bus về. Không fd mở thì chip giữ cấu hình nửa vời tới lần ghi sysfs hay probe sau: `open` (`mpu6050_start`) chỉ reset FIFO, không ghi lại tốc độ/dải. Sửa ở GĐ2 nếu cần: `start` gọi `mpu6050_configure`, đổi lại open chậm thêm ~10 giao dịch
+
+**Bẫy mới**
+- Busybox: không có `pgrep`, `head -c`, `od -A/-t/--endian` (dùng `hexdump -e '1/1 "%02x"'`); vòng chờ phía laptop dùng `pgrep` sẽ không bao giờ thoát
+- Lệnh nền trong `sh` không tương tác bỏ qua SIGINT: `dd` nền phải `kill -TERM`; app tự bắt INT nên không gặp
+- `kfree` ở cuối hàm là tail call: event `kmem:kfree` ghi call_site là hàm gọi (`release_nodes`), không phải `mpu6050_*`; ghép theo `ptr`
+- Hàm static nhỏ bị inline không có trong `available_filter_functions` (`mpu6050_free`)
+- Sắp xếp trong awk của busybox là O(n²) với n = 30000: rất chậm, dùng `sort -n`
+- Log trên `/tmp` của bo mất khi ghi thẻ: chép về `docs/logs-*` trước khi đưa lệnh ghi thẻ
+- Unit `BindsTo=dev-mpu6050.device` chạy lại sau mỗi unbind/bind: tự kiểm chạy lại, bình thường
+
+**Dữ kiện chỉ người làm có**: giảng viên có yêu cầu kernel cụ thể cho demo không (mặc định đang là RT không debug); trường có cho dùng cùng đề tài cho hai đồ án không (spec).
+
+---
+
+## Tuần 8 — đường lỗi, module vào ảnh, tài liệu, demo (2026-10-30) — XONG 2026-10-30 (trừ tag)
+
+Mốc kiểm tuần 8 đạt: bus hỏng khi stream (rút SDA, mất nguồn chip, ghi sysfs lúc hỏng) không treo, log có giới hạn tốc độ, `dropped` khớp thời gian hỏng × nhịp, tự hồi không rmmod; unbind khi fd mở và khi stream 20 vòng sạch (kref, `ENODEV`), slab không tăng; ảnh mới có driver, app, overlay 400 kHz, driver tự nạp, `/dev/mpu6050` 0600 root, tự kiểm lúc boot không thao tác tay (journal "ĐẠT"); ghi thẻ bằng `flash-verified.sh`, hồi quy rút gọn trên kernel nộp đạt; `docs/architecture.md`; demo diễn tập đủ 6 bước. Lockdep 1 sau mọi bước trên RT debug. Chưa: tag `v1.0-chuyennganh` (Tus duyệt).
+
+**Quyết định (đầu tuần, theo khuyến nghị)**
+- Kernel ảnh nộp: RT không debug (Tus: chưa biết giảng viên yêu cầu gì, theo mặc định). Đường lỗi làm trước trên RT debug để có lockdep
+- extlinux trong layer giữ một nhãn; non-RT không vào wic (cần recipe chép kernel thứ hai, không đáng cho GĐ1)
+- Tham số thử, debugfs: giữ. Khung hỏng 1000 Hz RT debug: ghi là giới hạn, cam kết 500 Hz
+- Quyền `/dev/mpu6050`: 0600 root ghi tường minh trong rule udev (GĐ1 chỉ root đọc); nhóm cho `sensord` ở GĐ2
+- Test không thao tác tay: unit oneshot không `[Install]`, udev kéo lên bằng `SYSTEMD_WANTS` khi `/dev/mpu6050` xuất hiện (không làm chậm `multi-user.target`, chạy lại sau bind)
+- Chip mất nguồn: `dropped` không tăng (không có mẫu); Tus duyệt giữ nghĩa `dropped`
+
+**Bước 1: kref, watchdog (RT debug, `.ko` `3a22d99c`, sau đó `2ed09f00`)**
+- `st` cấp bằng `kzalloc` + kref; thiết bị giữ một tham chiếu (devm action đầu tiên, chạy sau cùng), mỗi fd một. `remove`: `misc_deregister` (misc_open gọi `open` dưới `misc_mtx` nên sau đó không còn open nào), `gone`, dừng nguồn, `cancel_delayed_work_sync`, `wake_up` với `EPOLLHUP`. `read` trả nốt bản ghi rồi `ENODEV`, `poll` `HUP|ERR`, ioctl `ENODEV`. App thoát mã 1 khi `ENODEV`
+- Watchdog `delayed_work` 1 s, chỉ khi có fd mở (`active`): không cạnh nào trong một nhịp (nửa trên đếm `n_edges`) hoặc `streaming` false (bật lại lỗi) → `mpu6050_recover`: `WHO_AM_I` (lỗi thì thôi, không ghi gì, không log), `DEVICE_RESET`, cấu hình, start. Lấy `cfg_lock`, nên `cancel_delayed_work_sync` gọi sau khi nhả `cfg_lock` (release, remove). Lỗi khởi tạo lại chỉ báo lần đầu và lúc hồi (bản đầu báo mỗi giây). debugfs `recover`
+- Thứ tự khóa, uapi, sysfs, nghĩa `dropped` không đổi; thread IRQ vẫn không lấy khóa
+
+**Bước 2: unbind (`scripts/mpu-fault.sh`)**
+- `held` (fd mở không đọc, unbind, đọc bằng fd cũ): 110 bản ghi còn lại rồi `No such device`; giải phóng ở `mpu6050_release`. `cat` chặn trong `read()`: dậy sau 0.12 s, `read error: No such device`
+- `unbind 20` lúc app đang đọc: 20/20 app thoát mã 1, bind lại đọc 50 bản ghi. Event `kmem:kmalloc/kfree` ghép theo `ptr`: `st` (8840 B) cấp 20, giải phóng 19 + 1 đang sống (bản trước vòng đầu giải phóng ở vòng 1); 18 lần từ `release_nodes`, 1 từ `mpu6050_release`. Slab 26.80 → 26.82 MB. dmesg không bug/warn. Lockdep 1
+- ftrace function trên `mpu6050_free` không được (bị inline); `kfree` tail call nên call_site là hàm gọi
+
+**Bước 3: bus hỏng (Tus rút/cắm dây, 100 Hz)**
+- Lượt A, rút SDA rồi ghi `sample_rate` 200: lúc rút ngắt vẫn ~100/s, `dropped` tăng ~100/s sau khi hàng đợi cạnh đầy; `FIFO_COUNT read failed: -121` ≤ 10 dòng/5 s ("~492 callbacks suppressed"). Ghi sysfs: `Remote I/O error` sau 0.15 s, `sample_rate` đọc lại 100; stream dừng (ngắt 0), watchdog thử mỗi giây. Cắm lại: `chip reinitialised`, `recover` 1, stream tiếp. App: 37 lần "1 s without data", 20141 bản ghi, temp 34.2 °C, |a| ≈ 1.02 g
+- Lượt B, rút SDA không ghi sysfs: khoảng ts lớn nhất 17.92 s (× 100 = 1792), `dropped` +1795. Δirq 15832, bản ghi + `dropped` 15857 (dư −25 = mẫu không cạnh quanh lúc reset). Lúc cắm lại 2 lần `FIFO count 10/17 not a multiple of 8, reset`
+- Lượt C, rút VCC module (~14.7 s), ghi mọi bản ghi bằng `dd` (`REC=1`): `no INT for 1000 ms, reinit chip`, 12 lần thử lỗi, `chip reinitialised`. 41641 bản ghi, khoảng ts lớn nhất 14.665 s, `dropped` không đổi, 0 bản ghi temp ngoài 15..60 °C (không lệch byte); |a| lệch khỏi 1 g ở 40–60 s và 75–76 s (lúc tay chạm module rút/cắm dây). 72 cặp dt ~16/4 ms trong 430 s: cạnh trễ trên RT (đã biết)
+- Log của ba lượt nằm trên thẻ cũ, mất khi ghi thẻ; số ở trên chép từ output trong session
+
+**Bước 4: ảnh nộp**
+- Recipe mới `recipes-apps/mpu6050-boot-check` (script, unit, `90-mpu6050.rules`; `RDEPENDS` `mpu6050-test kernel-module-mpu6050`), thêm vào `projectb-image`. Template + conf: `PROJECTB_KERNEL_DEBUG = "0"`. Kernel lấy từ sstate, zImage `818fb8a7…` = mốc `rt-20261022`
+- Lần build đầu session phải build lại kernel RT debug thật (~15 phút): tuần 7 đổi `PREFERRED_PROVIDER` qua lại
+- Ghi thẻ lần 1 (`rootfs-20261030084228`, đầu đọc `aaaa:8816`, không phải Genesys): module tự nạp, `/dev/mpu6050` `crw------- root:root`, unit tự kiểm "ĐẠT" 19 s sau boot. Nhưng dmesg có `FIFO_COUNT read failed: -121`
+
+**Bước 5: NACK trên RT không debug (`scripts/mpu-lag.sh`)**
+- ftrace irq26 (hardirq bank GPIO ≈ cạnh) → irq50 (ts) → `i2c_write [72]`/`i2c_result`: ts trễ cạnh 6–18 µs (RT debug ≥ 40). Driver trừ 40 µs khi `CONFIG_PREEMPT_RT` nên đọc count ở 31–37 µs sau cạnh, trong xung INT: NACK 79/6063 (500 Hz), 1349/15679 (1000 Hz), 1000 Hz `misaligned` +4, `dropped` +8
+- Sửa: trừ 40 µs chỉ khi `CONFIG_PREEMPT_RT && CONFIG_LOCKDEP` (trễ đó do lockdep). A/B cùng lần boot, `.ko` mới `a38b5ad7`: đọc count 70–81 µs sau cạnh, NACK 0/6000 (500 Hz) và 0/15000 (1000 Hz), `misaligned` 0, `dropped` 0. Lượt B đầu tiên trace chỉ 48 sự kiện (`dd` thoát sớm hoặc trace tắt, chưa rõ, không lặp lại); script giờ in dòng trạng thái của `dd`
+- Bản trên RT debug không đổi hành vi (vẫn trừ 40 µs); chưa chạy lại trên RT debug với `a38b5ad7` nguồn (chỉ khác hằng số này so với `2ed09f00`)
+
+**Bước 6: hồi quy rút gọn trên kernel nộp (`a38b5ad7` từ `/tmp`, sau đó trong ảnh)**
+- selftest 0 FAIL; `sweep` 100–1000 Hz `dropped` 0, `misaligned` 0, CPU rảnh 90–98%; `oflow 1000`: +107, dư 0; `cfg` 100 → 200 Hz, ±2 → ±4 g; `load 600`: stress-ng 3/3 passed, 60568 bản ghi = irq, `dropped` 0, khoảng ts lớn nhất 10.2 ms, 0 giây > 20 ms
+- Ảnh `rootfs-20261030092552` (mốc `rt-submit-20261030`), ghi thẻ lần 2: unit "ĐẠT", 0 NACK; `mpu-lag 1000 15000` trên module của ảnh: NACK 0, đọc count 71–81 µs
+
+**Bước 7: tài liệu, demo**
+- `docs/architecture.md`: tầng, khởi động không thao tác tay, hợp đồng, luồng dữ liệu, khóa, vòng đời và đường lỗi, số đo (GĐ1 + kernel nộp), giới hạn, ảnh LA chọn cho báo cáo. Log: `docs/logs-2026-10-30/` (journal tự kiểm, nghiêng, rút SDA, lag A/B, lag 1000 Hz, tóm tắt `load 600`)
+- `scripts/demo.sh` 6 bước. Diễn tập trên thẻ mới (Claude chạy, Tus nghiêng/rút dây): 1–2 kernel, overlay 400000 Hz, tự kiểm `Result=success`; 3 nghiêng: `ax` −1.51..+0.36, `ay` −0.64..+1.24, `az` −0.67..+0.95 g, `dropped` 0; 4 101 → 505/s, ±8 g, `dropped` 0; 5 rút SDA 22.1 s → `dropped` +2210; 6 unbind → app mã 1, bind lại selftest 0 FAIL, unit chạy lại "ĐẠT". Sửa sau lượt chạy thử: `od --endian` → `hexdump`, `systemctl status` (mốc giờ lệch vì chưa có NTP lúc boot) → `systemctl show`
+
+**Commit**: chưa (chờ Tus).
+
+---
+
+## Tuần 8 — bàn giao (ghi 2026-10-30)
 
 Đọc mục này trước khi bắt đầu tuần 8 ở session mới. Tuần 1–7 xong; chi tiết tuần 7 ở mục ngay dưới. Ghi chú kiến thức tuần 7: `~/workspace/VKU/DoAn/week7-knowledge-summary.md`. Hạn nộp 2026-11-25.
 

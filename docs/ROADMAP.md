@@ -79,7 +79,7 @@ không cần flash lại thẻ (đầu đọc SD hiện tại không đáng tin)
 | Machine conf riêng (`bbb-projectb.conf`), distro conf | 9–11 hoặc khi rảnh |
 | Watchdog handoff U-Boot → `omap_wdt`, `RuntimeWatchdogSec` | 9–11 |
 | Benchmark runner (`fork/exec/waitpid`) | 9–11 |
-| udev rule cho `/dev/mpu6050` | 12–14 |
+| udev rule cho `/dev/mpu6050`: nhóm cho `sensord` (rule tối thiểu đã có từ tuần 8) | 12–14 |
 | `sensord`, shared memory, message queue, mutex/condvar | 12–14 |
 | HMI và AI đọc từ `sensord` qua shared memory | 12–14 |
 | OTA: chỉ thiết kế trên giấy | 15–16 |
@@ -125,6 +125,13 @@ Cắt nếu trễ, theo thứ tự: LVGL → ioctl còn một lệnh → FIFO th
 - Tốc độ tối đa cho mốc `dropped` = 0 là 500 Hz. `sample_rate` vẫn nhận 4..1000; 1000 Hz còn mất ~0.03%
   trên RT debug (chip trượt con trỏ FIFO khi lần đọc lô trễ sang lúc chip ghi mẫu kế, xem PROGRESS tuần 7).
 - I2C2 400 kHz, đặt trong overlay của project.
+
+Điều chỉnh 2026-10-30 (tuần 8):
+- udev rule cho `/dev/mpu6050` lên GĐ1 ở dạng tối thiểu (`90-mpu6050.rules`, recipe `mpu6050-boot-check`):
+  quyền 0600 root ghi tường minh, `TAG+="systemd"` để unit tự kiểm chạy khi thiết bị xuất hiện. Phần GĐ2
+  còn lại: nhóm riêng và `MODE 0640` cho `sensord` không chạy root.
+- Ảnh nộp dùng RT không debug (`PROJECTB_KERNEL_DEBUG = "0"` trong template); RT debug chỉ còn là cấu hình
+  lúc sửa driver. Non-RT không vào wic.
 
 Ghi nhận cho GĐ2: trên RT `gpio-omap` xin IRQ với cờ 0 (`gpio-omap.c:1077`) nên bị ép thread
 `irq/26-4804c000.gpio`; handler `IRQF_ONESHOT` của driver không bị ép thread (`manage.c:1372`) nhưng

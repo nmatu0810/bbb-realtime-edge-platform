@@ -1,0 +1,54 @@
+chip 0x70, 100 Hz, +-2 g (16384 LSB/g), accel DLPF 41 Hz
+  102/s [100 Hz +-2g]  ax -0.944 ay +0.065 az -0.375 g  33.88 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.941 ay +0.060 az -0.376 g  33.87 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.942 ay +0.066 az -0.370 g  33.87 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.942 ay +0.064 az -0.374 g  33.87 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.941 ay +0.063 az -0.380 g  33.89 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.941 ay +0.061 az -0.374 g  33.86 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.942 ay +0.064 az -0.371 g  33.91 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.943 ay +0.059 az -0.376 g  33.90 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.942 ay +0.063 az -0.377 g  33.90 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.943 ay +0.064 az -0.374 g  33.90 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.942 ay +0.063 az -0.373 g  33.91 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.945 ay +0.063 az -0.374 g  33.92 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.944 ay +0.063 az -0.372 g  33.92 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.941 ay +0.061 az -0.372 g  33.92 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.945 ay +0.060 az -0.379 g  33.92 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.890 ay +0.015 az -0.425 g  33.97 C  max gap  10.0 ms  dropped +0  age 0.6 ms
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+poll: 1 s without data
+   43/s [100 Hz +-2g]  ax -0.875 ay -0.088 az -0.461 g  34.03 C  max gap 22088.5 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.917 ay -0.006 az -0.469 g  34.04 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.887 ay +0.001 az -0.494 g  34.04 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.938 ay +0.075 az -0.387 g  34.09 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.940 ay +0.071 az -0.381 g  34.06 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.940 ay +0.069 az -0.387 g  34.12 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.943 ay +0.065 az -0.381 g  34.12 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.939 ay +0.063 az -0.383 g  34.10 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.944 ay +0.070 az -0.381 g  34.13 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.939 ay +0.070 az -0.382 g  34.13 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.940 ay +0.070 az -0.382 g  34.15 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.941 ay +0.070 az -0.384 g  34.16 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.940 ay +0.071 az -0.379 g  34.14 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+  101/s [100 Hz +-2g]  ax -0.941 ay +0.067 az -0.379 g  34.14 C  max gap  10.0 ms  dropped +2210  age 0.6 ms
+total 3021 records, dropped +2210
