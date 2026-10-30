@@ -56,7 +56,7 @@ static int stream(long limit)
 	struct pollfd pfd;
 	uint64_t win_start = 0, prev_ts = 0, max_gap = 0;
 	long total = 0, win_n = 0;
-	int fd;
+	int fd, gone = 0;
 
 	fd = open(DEV_PATH, O_RDONLY | O_NONBLOCK);
 	if (fd < 0) {
@@ -72,7 +72,7 @@ static int stream(long limit)
 
 	pfd.fd = fd;
 	pfd.events = POLLIN;
-	while (!stop && (limit <= 0 || total < limit)) {
+	while (!stop && !gone && (limit <= 0 || total < limit)) {
 		int r = poll(&pfd, 1, 1000);
 
 		if (r < 0) {
@@ -93,6 +93,9 @@ static int stream(long limit)
 			int i, cnt;
 
 			if (n < 0) {
+				/* Driver đã unbind: fifo cạn thì -ENODEV mãi, poll báo HUP. */
+				if (errno == ENODEV)
+					gone = 1;
 				if (errno != EAGAIN && errno != EINTR)
 					perror("read");
 				break;
@@ -139,6 +142,11 @@ static int stream(long limit)
 		}
 	}
 
+	if (gone) {
+		printf("total %ld records, device removed\n", total);
+		close(fd);
+		return 1;
+	}
 	ioctl(fd, MPU6050_IOC_GET_STATS, &st);
 	printf("total %ld records, dropped +%llu\n", total,
 	       (unsigned long long)(st.dropped - st0.dropped));
