@@ -32,7 +32,12 @@ IMAGE_INSTALL:append = " \
     projectb-phy-retry \
     kernel-module-hid-multitouch \
     libinput-bin \
+    mpu6050-boot-check \
 "
+
+# Driver MPU6050 (tuần 8): mpu6050-boot-check kéo theo kernel-module-mpu6050 và
+# mpu6050-test (RDEPENDS). Module tự nạp theo modalias khi overlay tạo thiết bị
+# 2-0068; khi /dev/mpu6050 có, udev kéo unit tự kiểm lên, kết quả ở journal.
 
 # kernel-module-hid-multitouch phải ghi tay: MACHINE_EXTRA_RRECOMMENDS = "kernel-modules"
 # chỉ được kéo qua packagegroup-base, core-image-minimal không dùng nên ảnh không có

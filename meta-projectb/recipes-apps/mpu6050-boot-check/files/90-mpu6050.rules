@@ -1,0 +1,6 @@
+# /dev/mpu6050 do driver mpu6050 tạo (misc device). Module tự nạp theo modalias
+# (of:N*T*Cprojectb,mpu6050) bằng rule chung của udev, không cần rule ở đây.
+# Quyền GĐ1: root 0600, như mặc định của misc device, ghi rõ để không phụ thuộc mặc
+# định. GĐ2: sensord chạy không phải root, thêm GROUP riêng và MODE 0640.
+KERNEL=="mpu6050", SUBSYSTEM=="misc", OWNER="root", GROUP="root", MODE="0600", \
+	TAG+="systemd", ENV{SYSTEMD_WANTS}+="mpu6050-boot-check.service"

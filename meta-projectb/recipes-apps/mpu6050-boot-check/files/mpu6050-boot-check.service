@@ -1,0 +1,11 @@
+[Unit]
+Description=MPU6050 self-test at boot (project B)
+# Không có [Install]: udev kéo unit này lên khi /dev/mpu6050 xuất hiện
+# (ENV{SYSTEMD_WANTS} trong 90-mpu6050.rules), nên không làm chậm multi-user.target.
+BindsTo=dev-mpu6050.device
+After=dev-mpu6050.device
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mpu6050-boot-check
