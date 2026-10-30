@@ -21,6 +21,10 @@
 &i2c2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
+	/* dtb gốc đặt 100 kHz (am335x-bone-common.dtsi). Tuần 7: 400 kHz để đọc FIFO_COUNT
+	 * xong sớm trong chu kỳ 1 ms (1000 Hz) và bus không bận 77%. EEPROM cape 0x54..0x57
+	 * khai trên cùng bus (24c256) cũng chạy được 400 kHz. */
+	clock-frequency = <400000>;
 
 	imu@68 {
 		compatible = "projectb,mpu6050";
