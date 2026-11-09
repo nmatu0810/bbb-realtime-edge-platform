@@ -5,6 +5,27 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ---
 
+## LVGL bản mỏng (optional GĐ1, 2026-11-09) — chạy được trên bo, chưa vào ảnh
+- App `apps/mpu6050-hmi/` (`main.c` đọc `/dev/mpu6050` + vòng lặp, `ui.c` giao diện, `lv_conf.h` chỉ ghi chỗ khác mặc định). Một luồng: `poll()` chờ dữ liệu, timeout lấy từ `lv_timer_handler()`, không cần khóa. Chỉ đọc, không đổi driver. Màn: ba số X/Y/Z 5 Hz, biểu đồ 25 điểm/s (256 điểm, CIRCULAR), dòng trạng thái tốc độ/dải/`dropped`
+- Quyết định: không thêm `meta-oe`. Recipe `mpu6050-hmi` lấy LVGL v9.2.2 (`7f07a129`, cùng commit meta-oe walnascar ghim), link tĩnh với `lv_conf.h` của app. Lý do: meta-oe không chỉnh được font, không đổi danh sách layer, binary 686 KB chỉ cần libc nên chép qua ssh là chạy trên ảnh nộp (không `libdrm`), thẻ không đổi. Backend fbdev. GĐ2 cần meta-oe (GoogleTest, evtest) thì xét lại
+- `do_package_qa` báo `[buildpaths]`: `LV_LOG` dùng `__FILE__`, LVGL nằm ngoài `${S}`. Sửa bằng `-ffile-prefix-map` cho `${UNPACKDIR}/lvgl`, không dùng `INSANE_SKIP`
+- Màn: phải bật trước bo. Bo boot khi HDMI `disconnected` thì không có `/dev/fb0`. Có màn: `fb0` 1024x600, 16 bpp, `tilcdcdrmfb`, không EDID timeout. `KDSETMODE KD_GRAPHICS` để fbcon không đè lên hình, thoát trả `KD_TEXT`
+- Đo trên ảnh nộp (RT không debug), `scripts/hmi-measure.sh`, `scripts/hmi-matrix.sh`; CPU đối chiếu `/proc/pid/schedstat` (ns) khớp số theo tick (1,95% so với 1,9%):
+
+| Tốc độ | Tải | CPU app | IRQ | `dropped` |
+|---|---|---|---|---|
+| 100 Hz, đứng yên | không, 60 s | 1,9% | 6011 | 0 |
+| 100 Hz, đứng yên | `stress-ng --cpu 1`, 30 s | 2,5% | 3013 | 0 |
+| 500 Hz, đứng yên | không, 30 s | 2,0% | 15043 | 0 |
+| 500 Hz, đứng yên | `stress-ng --cpu 1`, 30 s | 2,6% | 15072 | 0 |
+| 100 Hz, lắc tay | không, 30 s | 2,8% | 3009 | 0 |
+
+- RSS ~2 MB. SIGTERM thoát sạch, `mpu6050-test` mở lại ngay không `EBUSY`. Tus xác nhận màu đúng trên màn thật; ảnh chụp `fb0` khớp bố cục, |a| ≈ 1,01 g lúc đứng yên
+- Chưa làm, có chủ đích: không vào ảnh, không tự chạy (single opener: app giữ `/dev/mpu6050` thì `demo.sh` và `mpu6050-test` báo `EBUSY`). Mỗi lần boot: `scripts/hmi-push.sh`. Không chạy app khi đo real-time. Báo cáo PDF ghi GUI ngoài phạm vi, app này là phần mở rộng
+- Commit: chưa (chờ Tus)
+
+---
+
 ## GĐ2 — bàn giao, chưa bắt đầu (ghi 2026-10-30)
 
 Đọc mục này trước khi bắt đầu GĐ2 (tuần 9) ở session mới. GĐ1 xong; tag `v1.0-chuyennganh` (annotated, trên `9ec9884`) đã push 2026-11-01. Báo cáo ĐACN2 và đề cương sửa theo sản phẩm ở `docs/report/` (README trong đó: dựng lại từ `content.py`, mở bằng Word để cập nhật mục lục; mẫu của khoa và đề cương bản nộp nằm ở `docs/`, không commit). Còn: Tus đọc lại báo cáo, xuất PDF từ Word, nộp trước 2026-11-25. Chi tiết tuần 8 ở mục ngay dưới; tóm tắt kiến trúc cho báo cáo: `docs/architecture.md`. Ghi chú kiến thức tuần 8: `~/workspace/VKU/DoAn/week8-knowledge-summary.md`. Hạn nộp chuyên ngành 2026-11-25.
