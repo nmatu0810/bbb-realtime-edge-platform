@@ -7,7 +7,7 @@ Mục gồm: đã làm, kết quả đo được, việc tiếp theo, câu hỏi
 
 ## GĐ2 — bàn giao, chưa bắt đầu (ghi 2026-10-30)
 
-Đọc mục này trước khi bắt đầu GĐ2 (tuần 9) ở session mới. GĐ1 xong trừ tag `v1.0-chuyennganh` (chờ Tus bảo). Chi tiết tuần 8 ở mục ngay dưới; tóm tắt kiến trúc cho báo cáo: `docs/architecture.md`. Ghi chú kiến thức tuần 8: `~/workspace/VKU/DoAn/week8-knowledge-summary.md`. Hạn nộp chuyên ngành 2026-11-25.
+Đọc mục này trước khi bắt đầu GĐ2 (tuần 9) ở session mới. GĐ1 xong; tag `v1.0-chuyennganh` (annotated, trên `9ec9884`) đã push 2026-11-01. Báo cáo ĐACN2 và đề cương sửa theo sản phẩm ở `docs/report/` (README trong đó: dựng lại từ `content.py`, mở bằng Word để cập nhật mục lục; mẫu của khoa và đề cương bản nộp nằm ở `docs/`, không commit). Còn: Tus đọc lại báo cáo, xuất PDF từ Word, nộp trước 2026-11-25. Chi tiết tuần 8 ở mục ngay dưới; tóm tắt kiến trúc cho báo cáo: `docs/architecture.md`. Ghi chú kiến thức tuần 8: `~/workspace/VKU/DoAn/week8-knowledge-summary.md`. Hạn nộp chuyên ngành 2026-11-25.
 
 **Hệ thống đang chạy (sau tuần 8)**
 - Thẻ ghi ảnh nộp `projectb-image-beaglebone-yocto.rootfs-20261030092552.wic` (mốc `~/projectb-baseline/rt-submit-20261030/`, `SHA256SUMS`): kernel `6.12.47-rt6-yocto-preempt-rt` không debug (zImage `818fb8a7…`, trùng mốc `rt-20261022`), overlay 400 kHz `51b9e80e…`, `mpu6050.ko` `a38b5ad7…` trong `/lib/modules/…/updates/`, `mpu6050-test`, `mpu6050-boot-check`. extlinux một nhãn (`Yocto`) từ layer; không còn nhãn `NonRT`, `zImage-nonrt` (mốc ở `nonrt-20261030/`)
